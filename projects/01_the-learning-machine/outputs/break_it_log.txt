@@ -1,0 +1,7 @@
+# Project 1 BREAK IT — kill gradient flow through __mul__
+baseline:        initial=0.880232  final=0.006837
+broken __mul__:  initial=0.880232  final=0.880203
+
+Lesson: without gradient flow through multiplication, every weight is
+effectively untrained. The forward pass produces output, but no learning
+happens. The final loss is roughly the initial loss.

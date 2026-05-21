@@ -1,0 +1,11 @@
+# Project 1 run log
+final loss   : 0.006911
+epoch 0 loss : 0.880232
+
+# predictions vs targets
+  pred=-0.9628   target=-1.0   |diff|=0.0372
+  pred=-0.9675   target=-1.0   |diff|=0.0325
+  pred=-0.9687   target=-1.0   |diff|=0.0313
+  pred=+0.9607   target=+1.0   |diff|=0.0393
+  pred=+0.9704   target=+1.0   |diff|=0.0296
+  pred=+0.9684   target=+1.0   |diff|=0.0316
