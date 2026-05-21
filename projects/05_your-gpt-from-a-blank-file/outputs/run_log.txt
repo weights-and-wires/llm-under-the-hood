@@ -1,0 +1,32 @@
+# Project 5 run log
+corpus_chars     : 1635
+vocab_size       : 48
+block_size       : 32
+d_model          : 64
+n_heads          : 4
+n_layers         : 2
+steps            : 200
+n_parameters     : 102144
+train_loss_final : 1.5735
+val_loss_final   : 2.7224
+uniform_baseline : 3.8712
+
+# sample generations (3 samples, temperature=1.0)
+--- sample 1 ---
+First Citizen:
+First, wene song wethatins obes ves pearopiceeresoo s tingslct ct; hinsth?
+Rmest aelakSe to tilla s'sped ke kne hary ver
+--- sample 2 ---
+First Citizen:
+No pecoure wecitay, anow e, ak.
+Second Citizen Car tolititizen:
+
+etid wicitizensons wice, Couldied, cius wol he'ty; cthe
+--- sample 3 ---
+First Citizen:
+Ve areict; couled inelasounarespespespe Mless Nresk.
+Wespeak.
+
+Apepecond Cititizens't Coullay.
+First, Citizens Can:
+Nay.

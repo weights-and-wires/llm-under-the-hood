@@ -1,0 +1,18 @@
+# Project 5 BREAK IT — remove residual connections
+
+uniform baseline      : 3.8712
+baseline (residual)   : train=1.5735  val=2.7224
+broken (no residual)  : train=2.8488  val=2.8053
+
+Lesson: each residual connection lets the original signal flow through
+unmodified. The sublayer learns a CORRECTION, not a REPLACEMENT. When you
+remove residuals:
+  - Random init of attention/MLP wipes out the input signal completely
+    before training has done anything useful.
+  - Deep stacks become untrainable — each layer destroys what the
+    previous layer learned to express.
+  - LayerNorm pre-attention can't compensate; it can normalize but it
+    can't restore the lost signal.
+
+This is the single biggest architectural reason transformers go deep
+in the first place. Without residual connections, deeper = worse.
