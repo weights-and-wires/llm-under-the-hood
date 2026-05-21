@@ -1,84 +1,113 @@
-# Project 3: Building A Tokenizer
+# Project 3: Building a Tokenizer
+
+> Byte-Pair Encoding from scratch in ~80 lines. Train at multiple vocabulary sizes, visualize what gets merged, and watch the sweet spot emerge between "everything is bytes" and "everything is rare fragments."
 
 ## Hook
 
-Why does every serious language model bother with a tokenizer at all? Why not just feed in characters, one by one, and let the model figure it out? Or go the other direction and use whole words, since that is what humans think in? This is where a lot of newcomers get stuck. Characters feel too small. Words feel too rigid. And "**token**" sounds like one of those terms everyone uses before they have explained what problem it solves. This chapter fixes that. You are going to build the thing that decides what the model even sees.
-
-The thing I wish I had known three years earlier: tokenizers are not a side topic. They quietly shape what your model can learn, how much of your context window survives a long document, and how badly your model embarrasses you on languages it was not trained on. When I started building a Tamil triage pipeline for an offline Android deployment, the tokenizer was where most of the early pain lived.
+`tokenizer.encode("Hello, world")` is one of those calls that does a lot more than it looks like. It enforces a permanent decision: every chunk it produces becomes a "thing" the model has to learn an embedding for. If that decision is bad, the model fights the tokenizer instead of learning the data. This project peels open that decision layer and builds it from raw bytes.
 
 ## The Concept
 
-Start with the wrong mental model: "text is made of words."
+A **BPE tokenizer** starts with the 256 possible byte values. It counts which adjacent pairs of bytes are most frequent, merges the winner into a new token ID, and repeats until the vocabulary reaches the desired size. That is the whole engine: count pairs, pick the winner, replace it, repeat.
 
-It is not, at least not in a way computers can trust. Take these three strings:
-
-- `play`
-- `playing`
-- `replaying`
-
-A whole-word system treats these as three unrelated items unless all three appear in its vocabulary. Now take `color` and `colour`. Same meaning, different spelling. Now take `printf(`, `user_id`, and `2026-03-26`. These are not normal "words" at all, but they appear constantly in code, logs, configs, docs, SQL, shell commands, and chat transcripts. So whole words break the moment text gets messy.
-
-Characters look safer. Every string is made of characters, with no out-of-vocabulary problem and no need to guess word boundaries. But character-level text is like shipping a sofa one screw at a time. A character tokenizer turns `internationalization` into a long chain of tiny pieces. The model must spend compute predicting letter after letter after letter, even when the larger chunk is common and stable. That wastes context window and wastes learning capacity. So we need a middle ground.
-
-Here is the plain-English picture. Imagine you are compressing sticky notes from a busy office. At first, every note is stored as individual letters. That works, but it is wasteful. You keep seeing the same letter pairs: `th`, `he`, `in`, `er`, `re`. So you invent shorthand cards for those pairs. Then you notice bigger chunks appear constantly: `the`, `ing`, `ion`, `printf`, `://`, `.com`. You add cards for those too. You never hard-code English grammar. You never tell the system what a noun is. You just keep asking one question: "What adjacent pair shows up most often? If I replace that pair with a single new symbol, do I save space?"
-
-That is **byte-pair encoding**, or BPE.
-
-BPE starts from raw bytes. A byte is just a number from 0 to 255. Text files on disk are bytes. UTF-8 characters are bytes. Emojis are bytes. Code is bytes. Weird punctuation is bytes. Starting from bytes means nothing is out of vocabulary. Every possible input can be represented, because every possible input is bytes. Then BPE learns a vocabulary by repeated merging:
-
-1. Count all adjacent byte pairs in the training corpus.
-2. Find the most frequent pair.
-3. Replace that pair everywhere with a new token ID.
-4. Repeat until you reach the target vocabulary size.
-
-If you start with 256 byte values and add 768 merges, you get a vocabulary of 1024 tokens. The key idea is simple: common chunks become single tokens; rare chunks stay split. A good tokenizer does not try to make every weird string into one giant token. It gives short, common patterns their own entries and leaves rare junk as smaller pieces. That is why BPE handles both everyday language and ugly real-world text.
-
-Here is the other picture that helps. Think of vocabulary size as drawer size in a workshop. Too few drawers: every tool is broken into tiny parts and scattered everywhere, so you spend forever assembling what you need. Too many drawers: you create a custom drawer for every slightly different object, and most drawers hold one thing and never get opened again. A tokenizer needs the middle ground. Enough drawers to store recurring chunks, not so many that the system memorizes trivia.
-
-Before any code, define the two things you are optimizing against each other:
-
-- Sequence length: how many tokens it takes to represent text.
-- Token frequency: how often each token appears in the corpus.
-
-A larger vocabulary usually shortens sequences, but it also creates rarer tokens. That tradeoff is the whole chapter, and Figure 3.1 shows how BPE navigates it by starting from bytes and merging upward.
-
-![Figure 3.1. Byte-pair encoding starts from bytes, merges frequent adjacent pieces, and tries to shorten sequences without wasting vocabulary on one-off chunks.](figures/fig_tokenizer_bpe_flow.png)
+Encoding new text re-applies the learned merges in the same priority order they were discovered. Decoding concatenates the byte sequences each token stands for. The tokenizer is just a compression scheme — but the compression units are the things the language model later predicts.
 
 ## Why It Matters
 
-The tokenizer is not a preprocessing footnote. It changes what the model can learn efficiently.
+Vocabulary size is a knob nobody explains until it bites them. Too small and the model wastes context budget reassembling common chunks character-by-character. Too large and rare tokens never accumulate enough gradient signal to become useful. The sweet spot exists because two costs pull in opposite directions, and the only way to feel that tradeoff is to train at multiple sizes and look.
 
-If your tokens are too small, the model wastes attention on low-level assembly. Suppose the sentence is `The database connection timed out again.` A bad tiny-token setup might turn this into dozens of pieces. The model now spends context and compute reassembling `connection` from fragments instead of learning the larger pattern that `database connection timed out` often appears together.
+---
 
-If your tokens are too large, you get the opposite failure. Imagine a vocabulary that contains bizarre one-off chunks like `timed out again.` or `base connection timed out ag`. Those might save a token or two in the training corpus, but each appears so rarely that the model cannot learn a good embedding for them. An embedding is a list of numbers that represents meaning. If a token appears twice in the whole corpus, the model gets almost no chance to learn what that list of numbers should be.
+## What Got Built
 
-This was the failure mode that ambushed me during early per-language tokenizer choices in some cooperative fine-tuning experiments. We had merged a vocabulary that looked great on training compression and quietly contained thousands of tokens that appeared two or three times. The training loss told one story. Generalization told another. The embeddings for those rare tokens were essentially noise.
+### Files in this folder
 
-This affects everything downstream. Bad tokenization means longer sequences, more memory cost, less useful context window, harder prediction targets, noisier embeddings, and worse compression of repeated patterns.
+| File | What it is |
+|------|------------|
+| [`build.py`](build.py) | BPE train/encode/decode, sweeps vocab sizes, visualizes token boundaries, plots compression curves |
+| [`break_it.py`](break_it.py) | Vocab too small (256 = pure bytes) vs. too large (8192 requested) |
+| `step_*.py` | The book's code blocks, extracted step-by-step. Reference material. |
+| `tests/test_unit.py` | 14 unit tests: pair counting, merge correctness, train, encode/decode roundtrip on ASCII + Unicode, merge priority |
 
-There is also a practical reason to care. When people say "this model has a 128K context window," that is 128K tokens, not 128K words and not 128K characters. If your tokenizer is inefficient, the same document consumes more of that budget. A code-heavy file might fit within one tokenizer and overflow in another. So vocabulary design is not cosmetic. It changes how much text the model can see, how often it reuses learned chunks, and how much training signal each embedding receives.
-
-Strong opinion: most "this model is better at X" benchmarks would tell a different story if both models were retokenized on the same vocabulary. Tokenizer-driven differences masquerade as model-driven differences all the time. After enough of these experiments I now find myself instinctively asking "whose tokenizer?" before "whose model?" when reading a comparison.
-
-You can think of a tokenizer as the interface between raw text and learned representation. Project 2 ended with characters as the unit. This project is where "input units" stop being given by nature and become a design choice. That is a major shift.
-
-## How to run this project
+### How to run
 
 ```bash
-# Proxy run (tiny model, runs on CPU in <60s):
-python projects/03_building-a-tokenizer/build.py --tiny
-
-# Full lab (requires hardware — see setup/03_gpu-and-hardware-tiers.md):
-python projects/03_building-a-tokenizer/build.py --full
-
-# The BREAK IT experiment:
-python projects/03_building-a-tokenizer/break_it.py
+python build.py --tiny      # sizes [288, 512, 1024], <30s on CPU
+python build.py --full      # sizes [288, 512, 1024, 2048, 4096]
+python break_it.py --tiny
+pytest projects/03_building-a-tokenizer/
 ```
 
-## Outputs
+---
 
-_To be captured in PR 3. Will include loss curves, sample generations, and any benchmark results._
+## Outputs (from `python build.py --tiny`)
+
+Built-in corpus: 1299 bytes of mixed prose + Python code + SQL + URLs.
+
+| Vocab size | Merges learned | Avg tokens/sentence | Compression ratio (bytes/token) | Tokens appearing once |
+|------------|----------------|----------------------|---------------------------------|------------------------|
+| 288        | 32             | 20.80                | 1.385                            | 5.4%                  |
+| 512        | 256            | 6.70                 | 3.540                            | 33.6%                 |
+| 1024 (req) | 300 (stopped)  | 4.90                 | 4.656                            | 42.5%                 |
+
+The vocab=1024 row reveals an interesting effect: BPE **stopped early** at actual vocab=556 because no adjacent pair appeared more than once. Past that point, every further merge would just invent a one-off token glued to a single corpus position. The training loop honors the principle "only merge if the pair recurs."
+
+### Token boundary visualizations
+
+Same sentence, three different vocabularies:
+
+| Vocab | Tokens for `"The quick brown fox jumps over the lazy dog."` |
+|-------|--------|
+| 288   | `[T][he·][q][u][i][c][k][·][b][r][o][w][n·][f][o][x][·][j][u][m][p][s·][o][v][er][·the·][la][z][y][·][d][o][g][.]` |
+| 512   | `[The·quick·brown·fox·jumps·over·the·lazy·dog][.]` |
+| 1024  | `[The·quick·brown·fox·jumps·over·the·lazy·dog][.]` |
+
+(`·` shows whitespace.)
+
+Two things are obvious from this. First, at vocab=288 the tokenizer barely improves over byte-level — common words still fragment. Second, the canonical pangram appears verbatim in the corpus, so BPE learned the whole sentence as a single token at vocab≥512. That's the "fossil" problem in miniature: an overfit chunk that won't generalize. On a real corpus this happens to rare-but-present phrases.
+
+### Code and SQL handling
+
+```
+"def main(): user_id = 42"
+  vocab=512  →  [def·][ma][in][()][:][·][user_][id·=·42]
+  
+"SELECT id, name FROM users WHERE active = TRUE;"
+  vocab=512  →  [SELECT·id,·nam][e·][FROM·users·WHERE·][act][iv][e·=·][T][R][U][E][;]
+```
+
+BPE is not looking for words, grammar, or semantics. It is looking for **repeated adjacent byte sequences**. Hence `()`, `:`, `_id`, `=`, `;` all become reusable chunks. `SELECT id, name FROM users WHERE` becomes one token — because that prefix repeats in the corpus.
+
+### Compression curve
+
+![Tokens per sentence and compression ratio vs vocab size](outputs/compression.png)
+
+Left: avg tokens per sentence vs vocab size (log x-axis). Right: compression ratio (bytes per token). Both curves drop fast then flatten — the canonical BPE sweet-spot signature.
+
+---
+
+## BREAK IT — vocab too small vs. too large
+
+```
+mode                       avg tokens/sent  compression     ==1freq
+----------------------------------------------------------------------
+baseline (vocab=512)                  6.70         3.540       33.6%
+too small (vocab=256)                28.30         1.000           -
+too large (req 8192)                  4.90         4.656       42.5%
+
+(too-large requested 8192, got actual=556 after BPE exhausted pairs)
+```
+
+**Too small (vocab=256).** No merges at all. Every byte is its own token. A 45-character sentence becomes 45 tokens. The model would have to do all the work of recognizing words from their constituent bytes — context budget wasted.
+
+**Too large (vocab=8192 requested → 556 actual).** BPE stopped early on this 1299-byte corpus because no remaining pair appeared more than once. Even at vocab=556, **42.5% of tokens used in the corpus appear exactly once**. On a real corpus this fraction wouldn't be quite that bad — but the trend is the same: pushing vocabulary size past what the corpus can support creates one-off "fossils" that won't accumulate enough gradient signal to learn useful embeddings.
+
+**Lesson:** the tokenizer exists to manage a tradeoff, not eliminate it. Modern vocabularies land in the tens of thousands because that's the size where there are enough pieces to compress common patterns without each piece becoming statistically lonely.
+
+---
 
 ## Read in the book
 
 This project is Chapter 3 of *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Buy the book at <https://leanpub.com/under-the-hood>.
+
+Read the chapter for: the full derivation of why BPE is greedy and why that's fine, the Tamil-tokenization story about why byte-level reassembly fails for complex scripts, and the long argument for why looking at your tokenizer's output by hand is the single most effective debugging habit in this stack.

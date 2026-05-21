@@ -1,0 +1,20 @@
+# Project 3 BREAK IT — vocab too small vs. too large
+
+baseline (vocab=512):       avg_tokens=6.70  compression=3.540  ==1freq=33.6%
+too small (vocab=256):       avg_tokens=28.30  compression=1.000
+too large (req 8192, got 556):  avg_tokens=4.90  compression=4.656  ==1freq=42.5%
+
+Lessons:
+1. Too-small vocab (256, no merges): byte-level tokens force every common
+   word to be reassembled from scratch every time. Sentences are ~4x longer.
+   A model would waste context budget on local reassembly.
+
+2. Too-large vocab (8192 requested): BPE stops early because no pair
+   occurs more than once. Most of the late merges are one-off fragments
+   that wouldn't get reusable embeddings in any downstream model.
+
+The sweet spot exists because two costs pull in opposite directions:
+small vocab causes long sequences and wasted context; large vocab causes
+sparse token frequencies and weak embeddings. Modern tokenizers land in
+the tens of thousands — enough to compress common patterns, not so many
+that each piece becomes statistically lonely.

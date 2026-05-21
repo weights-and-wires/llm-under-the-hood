@@ -1,0 +1,18 @@
+# Project 3 run log
+corpus_size_bytes: 1299
+vocab_sizes      : [288, 512, 1024]
+
+# per vocab size
+  vocab_size=288: avg_tokens=20.80  compression=1.385  unique=92  <5freq=29.35%  ==1freq=5.43%
+  vocab_size=512: avg_tokens=6.70  compression=3.540  unique=149  <5freq=87.25%  ==1freq=33.56%
+  vocab_size=1024: avg_tokens=4.90  compression=4.656  unique=146  <5freq=95.89%  ==1freq=42.47%
+
+# token boundary visualizations (largest vocab size)
+  The quick brown fox jumps over the lazy dog.
+    [The·quick·brown·fox·jumps·over·the·lazy·dog][.]
+  She sells seashells by the seashore.
+    [She·sells·seashells·by·the·seashore][.]
+  def main(): user_id = 42
+    [def·][ma][in][()][:][·][user_][id·=·42]
+  SELECT id, name FROM users WHERE active = TRUE;
+    [SELECT·id,·nam][e·][FROM·users·WHERE·][act][iv][e·=·][T][R][U][E][;]
