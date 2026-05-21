@@ -1,91 +1,106 @@
 # Project 6: From Prototype to nanoGPT
 
+> Two surgical refinements that turn the Project 5 prototype into a production-shape model: parameter groups for weight decay, and scaled residual initialization. Train both side-by-side and watch val loss drop by 0.7.
+
 ## Hook
 
-Why does a cleaner implementation of "the same model" often train better, run faster, and break less often? If my blank-file GPT already works, why does nanoGPT look different in so many small places that seem cosmetic until they are not?
-
-This is the moment where a lot of people get annoyed: you finally built a transformer yourself, then you open a reference implementation and it feels like someone quietly swapped your homemade bicycle for a shop-built racing bike and claimed they are both "just bikes." They are both bikes. But one was built to prove understanding, and the other was built to survive repeated use. This chapter is about learning to see that difference clearly.
-
-Here is the opinion I want to commit to upfront, because I do not think it is said often enough: nanoGPT is shaped by scars, not by design. Every "clean" choice in that file is the residue of some earlier run that went sideways. You will read it better if you treat each section as evidence of a failure someone learned from.
+By this point you have a working tiny GPT. The next question is whether reading reference code like nanoGPT is admiration or theft. Most lines in nanoGPT are not new algorithms. They are sharper engineering choices — different optimizer setup, different init, different data path. This project picks two of those choices, applies them to the Project 5 prototype, and measures the difference.
 
 ## The Concept
 
-Your Project 5 GPT and `nanoGPT` are like two kitchens that both produce soup.
+Most of the surface area between "a working prototype" and "a production-shape reference implementation" lives in three categories:
 
-In your kitchen, every pot, spoon, and cutting board is exactly where you left it. You know why each thing is there because you placed it yourself. It works. You can make dinner. But if three more people walk in and try to help, the room turns into a mess fast.
+1. **True algorithmic necessities** — without these, the model doesn't train (residuals, LayerNorm). Project 5 already has these.
+2. **Engineering choices that change speed, clarity, robustness** — what this project demonstrates.
+3. **Pure style** — naming, file organization.
 
-`nanoGPT` is the same kitchen after someone who has burned meals for years reorganizes it. The knives are still knives. The stove is still a stove. The recipe is still soup. But the counters are clear, the hot pans have designated landing spots, and the ingredients are staged in the order they are used. Nothing about that sounds like "new cooking theory." It sounds like tidiness. Then service starts, and suddenly that tidiness is the difference between calm and disaster.
+We apply two refinements from category 2:
 
-That is the first big idea of this project: a production-shaped minimal GPT does not mostly differ by adding exotic algorithms. It differs by removing avoidable friction. Some of that friction is code structure. Some is data movement. Some is training hygiene. Some is numerical stability. And a few parts that look boring, especially residual connections and LayerNorm, are not polish at all. They are life support.
+- **Parameter groups for weight decay.** AdamW applies weight decay uniformly by default. But biases and LayerNorm parameters serve a different role from weight matrices — they calibrate scale and shift, they don't carry the learned content. Shrinking them is at best wasted and at worst harmful. Split parameters into two groups: weights get `weight_decay=0.1`, biases and LayerNorm get `weight_decay=0.0`.
 
-We built our first GPT to understand the machine. Now we read `nanoGPT` to understand what a machine looks like after someone has been forced to care about speed, stability, and repeatability. The mental model to carry through the whole chapter: your prototype answers "What are the essential parts of GPT?" and `nanoGPT` answers "What are the essential parts once real training runs enter the room?" Those are not the same question. Your Project 5 file is a sketch. `nanoGPT` is a field manual. A sketch is honest; it shows the structure. A field manual is also honest, but in a harsher way. It has been shaped by failure. That is why this chapter matters. You are not reading bigger code to feel impressed. You are reading it to see where repeated failure carved the code into its final shape.
-
-The first time I tried to port my blank-file GPT toward nanoGPT, I assumed the gap was style. Naming. File organization. Maybe a small speedup somewhere. I was wrong. Most of the gap was about what happens when you run the same code a hundred times instead of three.
-
-Before code, let's anchor the main differences in plain English:
-
-**Embeddings**
-An embedding is a learned table that turns token IDs into vectors, meaning lists of numbers that represent each token. Your prototype probably treated embeddings as "the first layer." `nanoGPT` treats them as one part of a system that also includes positional information, dropout, **initialization**, and sometimes weight tying.
-
-**Transformer blocks**
-A transformer block is the repeating unit of GPT: attention, feedforward network, normalization, and residual paths. In a first implementation, the block is easy to read as a sequence of operations. In `nanoGPT`, the same block is arranged to train reliably at depth.
-
-**Output projection**
-At the end, the model turns hidden states back into vocabulary logits, one score per possible next token. A logit is an unnormalized score before softmax turns scores into probabilities. Your prototype may use a separate linear layer for this. `nanoGPT` often ties this output matrix to the token embedding matrix so the model reads and writes using the same learned dictionary.
-
-**Initialization**
-Initialization means how you choose the starting values of the weights before training. Your first version may use PyTorch defaults or a rough normal distribution. `nanoGPT` makes more deliberate choices because the starting scale of activations affects whether training begins as a controlled signal or as noise.
-
-**Forward pass**
-The forward pass is running inputs through the network to get logits and loss. In your prototype, `forward()` probably does exactly what you think the math says. In `nanoGPT`, `forward()` also reflects practical concerns: shape checks, optional targets, efficient loss computation, and clearer interfaces for training versus generation.
-
-**Generation loop**
-Autoregressive generation means the model predicts one token, appends it, and repeats. Your prototype probably recomputes more than necessary and keeps the logic simple. `nanoGPT` still keeps it readable, but it is sharper about evaluation mode, context cropping, temperature, and top-k sampling.
-
-And then there are the two quiet heroes of the chapter:
-
-**Residual connection**
-A residual connection adds the block input back to the block output: `x + F(x)`. If each layer is a person editing a document, the residual path keeps a photocopy of the previous version attached to the new one. Even if the editor makes a terrible change, the old content still survives. That matters during the backward pass too. The gradient, which is the number telling each parameter how to move to reduce loss, has a direct path backward through the addition.
-
-**LayerNorm**
-LayerNorm rescales activations so each token representation stays in a reasonable numeric range. If every layer is a musician in a long orchestra chain, LayerNorm is the sound engineer who keeps the volume from drifting wildly louder or quieter after each instrument passes the signal along. Without that engineer, small imbalances compound until the audio clips or disappears.
-
-People often treat residuals and norms as architectural decorations. They are not. They are the parts that let depth exist. And depth is the whole point of transformers. Two layers can bluff their way through, but six layers begin asking whether your design choices are serious. That is why the BREAK IT section in this chapter matters more than the code tour. When you remove residuals and LayerNorm, you stop discussing architecture in the abstract. You watch the machine lose the ability to learn.
+- **Scaled residual initialization.** In a deep residual stack, each block adds its output to the running hidden state. If each addition is full-scale, the magnitude drifts upward layer by layer. Compensate by initializing the residual-path output projections (attention.proj and the second linear in the MLP) with std reduced by `1/sqrt(2 * n_layers)`. Other linears and embeddings get `std=0.02`.
 
 ## Why It Matters
 
-If you stop at your prototype, you risk learning the wrong lesson. You might think the core equations are all that matter, that any training loop that "works" is basically fine, that residuals and normalization are detail work, and that clean code and stable code are separate concerns. All of those beliefs fail the moment you try to train a deeper model, compare experiments, resume a run, or extend the code without fear.
+After Project 6 you should not admire reference code from a distance. You should steal from it selectively, because you know what each stolen part is protecting.
 
-This project matters because it teaches you to separate three categories that beginners often mix together:
+---
 
-**Category 1: True algorithmic necessities**
-These are parts without which the model does not train or does not scale in depth. Residual connections and LayerNorm live here.
+## What Got Built
 
-**Category 2: Engineering choices that change speed, clarity, and robustness**
-These include how batches are built, when validation runs, how checkpoints are written, how generation hooks are handled, how optimizer parameters are grouped, and how loss computation is structured.
+A side-by-side training script comparing the Project 5 prototype's defaults against nanoGPT-style refinements.
 
-**Category 3: Style differences that are mostly about readability**
-Some naming and file organization choices land here. They matter, but they matter less than the first two categories.
+### Files in this folder
 
-If you cannot tell which is which, then every line in a reference implementation looks equally mysterious, and you learn nothing. You either cargo-cult the code or reject it as overbuilt. By the end of this chapter, you should not admire `nanoGPT` from a distance. You should steal from it selectively, not because it is bigger, but because you understand what each stolen part protects.
+| File | What it is |
+|------|------------|
+| [`build.py`](build.py) | Imports the GPT class from Project 5; adds `init_weights()`, `configure_param_groups()`, `train_with_groups()`; trains both side-by-side |
+| `break_it.py` | Raw extracted from the chapter — kept for reference (this project's "break vs. fix" comparison lives in build.py itself) |
+| `step_*.py` | The book's code blocks, extracted step-by-step. Reference material. |
+| `tests/test_unit.py` | 8 unit tests: param groups split correctly, biases + LN go to no-decay, weight-tied params not double-counted, init std values are correct, refinements help on val loss |
 
-## How to run this project
+### How to run
 
 ```bash
-# Proxy run (tiny model, runs on CPU in <60s):
-python projects/06_from-prototype-to-nanogpt/build.py --tiny
-
-# Full lab (requires hardware — see setup/03_gpu-and-hardware-tiers.md):
-python projects/06_from-prototype-to-nanogpt/build.py --full
-
-# The BREAK IT experiment:
-python projects/06_from-prototype-to-nanogpt/break_it.py
+python build.py --tiny      # 300 steps, ~5s on CPU
+python build.py --full      # 5000 steps
+pytest projects/06_from-prototype-to-nanogpt/
 ```
 
-## Outputs
+---
 
-_To be captured in PR 3. Will include loss curves, sample generations, and any benchmark results._
+## Outputs (from `python build.py --tiny`)
+
+4-layer model, d_model=64, 4 heads, 300 training steps:
+
+```
+Uniform baseline: 3.8712
+
+mode                               final train     final val
+------------------------------------------------------------
+prototype (P5 defaults)                 0.5342        4.3250
+nanoGPT-style refinements               0.4460        3.6184
+
+Parameter groups in nanoGPT-style optimizer:
+  with weight_decay=0.1:  201728 params
+  with weight_decay=0.0:  3456 params (biases + LayerNorm)
+```
+
+Two things to notice:
+
+1. **The prototype's val loss (4.33) is WORSE than uniform (3.87).** With no weight decay and default init, the model overfits hard — it learned the training set so aggressively that val performance degraded *below* random. This is exactly the failure the chapter warns about.
+
+2. **nanoGPT-style val loss (3.62) is 0.7 lower** despite slightly better train loss. Weight decay on the right parameters + smaller residual init keeps the model from collapsing into memorization.
+
+### Side-by-side loss curves
+
+![Train and val loss comparison: prototype vs nanoGPT-style](outputs/loss_comparison.png)
+
+The two train curves are similar (both drop hard). The two val curves are not: the prototype's val starts rising sharply (overfit signature) while the nanoGPT-style val keeps decreasing.
+
+### What the parameter-group split actually catches
+
+In a model of this size (≈200k decayed weights, ≈3k undecayed), the 3k undecayed parameters are:
+
+- 4 layers × 2 LayerNorm modules per block × 2 params per LayerNorm (weight + bias) = 16 LN params per layer
+- Plus the final LayerNorm
+- Plus all the Linear biases (qkv, proj, mlp.0, mlp.2 across 4 blocks)
+- Plus the LM head bias (wait — we used `bias=False` for lm_head, so it's not here)
+
+Most of the parameter count is in the weight matrices. But the 1.5% of params that *aren't* weights have a substantively different role, and the optimizer should respect that.
+
+---
+
+## "BREAK IT" — this project IS the comparison
+
+Project 6 doesn't have a separate `break_it.py` exercise because the comparison **is** the break-vs-fix experiment. Running `build.py` trains both versions side by side. The "broken" baseline is the unrefined Project 5 defaults. The "fixed" version applies the two refinements together. The val-loss delta (0.7 nats lower) is what the refinements buy you.
+
+If you want a more targeted break: edit `configure_param_groups` to put everything in the same group with full weight decay, retrain, and watch the LayerNorm weights collapse toward zero. That's the lesson that "different parameters play different roles, so the optimizer should treat them differently."
+
+---
 
 ## Read in the book
 
 This project is Chapter 6 of *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Buy the book at <https://leanpub.com/under-the-hood>.
+
+Read the chapter for: the full "categories of differences" framework, the fused-QKV-projection performance walkthrough, the data-path optimization story about a starving GPU, the LR warmup/cosine derivation, and the comparison of mixed-precision and FSDP across the two implementations.

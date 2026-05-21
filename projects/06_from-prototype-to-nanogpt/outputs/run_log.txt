@@ -1,0 +1,15 @@
+# Project 6 run log
+
+uniform baseline           : 3.8712
+prototype (P5 defaults)    : train=0.5342  val=4.3250
+nanoGPT-style              : train=0.4460  val=3.6184
+
+parameter groups:
+  decayed                  : 201728
+  not-decayed (bias + LN)  : 3456
+
+Refinements applied:
+  1. Init: N(0, 0.02) for Linear + Embedding; residual projections
+     get std = 0.02 / sqrt(2 * n_layers) to compensate for stacking.
+  2. AdamW param groups: weights get weight_decay=0.1; biases and
+     LayerNorm params get weight_decay=0.0.
