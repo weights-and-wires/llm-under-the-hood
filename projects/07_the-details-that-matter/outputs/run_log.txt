@@ -1,0 +1,14 @@
+# Project 7 run log
+steps: 200
+uniform baseline: 3.8712
+
+norm    mlp           params     train       val
+ln      gelu          105216    1.5537    2.6379
+rms     gelu          104896    1.5506    2.5884
+ln      swiglu        104320    1.5969    2.5978
+rms     swiglu        104000    1.6135    2.5991
+
+Lessons:
+- RMSNorm: same regularization effect as LayerNorm, ~half the FLOPs.
+- SwiGLU: gating learns which features to pass through; modest extra
+  params (we scaled hidden_mult=8/3 to roughly match GELU MLP size).
