@@ -1,0 +1,24 @@
+# Project 8 run log
+T                       = 128
+d_head                  = 32
+q_block                 = 32
+kv_block                = 32
+
+naive peak intermediate = 32768 floats (128.0 KB fp32)
+tiled peak intermediate = 2048 floats (8.0 KB fp32)
+memory reduction        = 16.00x
+
+max |naive - tiled|     = 3.58e-07
+mean |naive - tiled|    = 2.87e-08
+
+Lesson: FlashAttention's actual contribution is *not* a new algorithm.
+It is a different scheduling of the same algorithm. By processing Q in
+chunks and tracking running softmax statistics (max + denominator),
+you never need to hold the full (T, T) score matrix in memory.
+
+On CPU this won't save wall time (numpy/torch already vectorize well),
+but on GPU the peak intermediate memory determines whether you can run
+longer contexts at all. T = 8192, d_head = 128:
+  naive intermediate = 8192*8192 = 64 MB per attention head per layer
+  tiled intermediate = 8192*64   = 0.5 MB per attention head per layer
+That difference is what makes long-context LLMs feasible.

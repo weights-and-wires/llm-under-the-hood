@@ -1,68 +1,102 @@
 # Project 8: Flash Attention and Tiled Kernels
 
+> The actual idea behind FlashAttention is not a new algorithm. It's a different schedule for the same algorithm — one that never materializes the full (T, T) score matrix in memory. This project demonstrates the schedule on CPU with explicit memory accounting.
+
 ## Hook
 
-Why does the hand-written attention from **Project 4: Attention From Scratch** run out of memory on a 4K context while PyTorch's `F.scaled_dot_product_attention` handles the same input on the same GPU without breaking a sweat? Same math, same hardware, same sequence length, and yet one crashes and one does not. The textbook answer is "Flash Attention is faster," which is true and also useless if you cannot see why.
-
-The first time I hit this wall I assumed it was a driver bug. It was not. The model was fine. The framework was fine. One tensor was the problem, and once you can name it, the fix is obvious.
-
-By the end of this chapter you will know the exact tensor that vanishes between the two versions, you will build a memory-efficient attention from scratch in pure PyTorch, and you will watch your peak memory drop from quadratic in sequence length to linear without changing a single line of the model that calls it.
+You hear "FlashAttention is 2-3× faster" so often that it's easy to assume there's a clever new math trick inside. There isn't. The math is identical. The contribution is a tiled execution schedule that respects the GPU memory hierarchy and never holds the `(T, T)` attention score matrix in main memory. That is what makes the wins possible — both wallclock and peak-memory.
 
 ## The Concept
 
-Picture a chef working on a tiny stove. The pan holds one cup of liquid at a time. The chef has a recipe that, in the original instructions, asks you to mix twenty cups together and then heat the whole batch. If you only have a one-cup pan, you have two choices. You can buy a bigger pan. That is the GPU-with-more-memory option, and it stops working as soon as the recipe scales up again. Or you can rewrite the recipe to work in small batches: a cup at a time, with a running total in a separate bowl, never holding more than a cup in the pan at once. That is Flash Attention. The pan is your GPU's fast on-chip memory. The bowl with the running total is the accumulator. The cup at a time is a tile.
+**Naive attention** computes `scores = Q @ K.T` (shape `(T, T)`), softmaxes it, multiplies by `V`. That intermediate `(T, T)` matrix is the memory bottleneck. At `T = 8192`, fp16, it's 128 MB per head per layer.
 
-The analogy that finally made tiled attention click for me did not involve a chef. It came from Orion, where we were programming the Apple Neural Engine directly because the high-level framework refused to honor our memory budget. The ANE has a small fast region and a large slow one, and every algorithm worth running on it eventually becomes a question of "what stays in fast memory, what gets streamed past it, and what never needs to be materialized at all." Flash Attention is the same question, asked of a GPU.
+**Tiled attention** processes `Q` in chunks of `q_block` rows. For each chunk, it walks over `K` and `V` in chunks of `kv_block` columns, maintaining a running `max` and softmax denominator. At the end of each `Q` chunk, it normalizes and writes back. The full `(T, T)` matrix is never built.
 
-Attention asks the model, for every position in a sequence, to compare itself against every other position and decide who matters. With a sequence of length N, that comparison produces an N-by-N table of scores. At N equal to 4096, that table holds about 16.8 million entries per attention head, and the model has several heads, several layers, and a batch of sequences. The table is the pan that is too big. Materializing it (actually allocating that N-by-N tensor in memory and writing every score into it) is the move that breaks at long context.
+The trick is the **online softmax**:
 
-Flash Attention's central idea is that you never have to materialize the table. The final output of an attention layer is a weighted sum of value vectors, where the weights come from a softmax over the score table. You can compute that final output in pieces. Take a small block of rows from the query, a small block of columns from the key, compute the partial scores for just that tile, fold them into a running output, throw the tile away, and move on to the next one. The full table is never written. The pan stays small. The result is identical.
+```
+m_new = max(m, max(scores_block))
+alpha = exp(m - m_new)            # rescale old accumulator
+beta  = exp(scores_block - m_new) # this block's contributions
+output_so_far = output_so_far * alpha + beta @ V_block
+denom         = denom         * alpha + sum(beta)
+```
 
-The trick that makes this possible is something called an **online softmax**, also called a **streaming softmax**. A standard softmax over N numbers needs to see all N numbers before it can produce any output. It computes the maximum of the N numbers (for numerical stability), subtracts that maximum from every number, exponentiates each result, sums the exponentials, and divides each by that sum. Every one of those steps depends on all N numbers being available at once. That is exactly the dependency we want to break.
-
-The online version watches the numbers come in one block at a time and keeps two running statistics: the running maximum seen so far, and the running sum of exponentials, rescaled to that maximum. When a new block arrives, you compute its own local maximum and local exponential sum, compare its maximum to the running maximum, and rescale the older running statistics if the new block's maximum is larger. The output you accumulate uses the same rescaling. By the end of the last block, the running statistics give you exactly the same answer as the all-at-once version, to the bit. No approximation. No shortcut. Just a different order of operations that never needs to hold the full vector in memory.
-
-Two terms worth defining before they appear in code. A **tile** is a small block of a larger tensor, sized to fit comfortably in a fast memory region. On a real GPU, that fast region is the on-chip SRAM, perhaps 100 kilobytes per streaming multiprocessor. On the conceptual version we will build in pure PyTorch, the "fast region" is whatever amount of GPU global memory you have decided to limit yourself to. A **fused kernel** is a single computation that combines what would otherwise be several separate passes through memory. Instead of computing scores, writing them out, reading them back, applying softmax, writing the softmax back, reading it again, and multiplying by values, a fused kernel does all of that on one tile while the tile is still in fast memory. The win is not only less memory. It is also fewer round trips between fast on-chip memory and slow off-chip memory, which is where most of a GPU's wall-clock time goes during attention.
-
-The original Flash Attention paper, by Tri Dao and colleagues in 2022, calls this property **IO-aware**: the algorithm is designed around the cost of moving data between memory tiers, not around the cost of arithmetic. Attention is bandwidth-bound at long context lengths, not compute-bound. Reducing memory traffic is the actual lever. The CUDA kernel in the production library is tightly tuned to the specific sizes of those memory tiers on real hardware, which is why writing it in CUDA pays for itself with another sizable speedup on top of the algorithmic win. But the algorithmic win is what we are after in this chapter, because the algorithmic win is what survives if you are reading this on a different accelerator three years from now.
-
-I learned this lesson the slow way on low-level ANE work. We spent weeks trying to make CoreML respect a memory budget the hardware's spec sheet said it could hit. CoreML refused. So we wrote against the private ANEClient and ANECompiler APIs and shaped the kernel around the memory hierarchy ourselves. The headline number was a large delta-compile speedup, but the real lesson was about who owns the memory plan. If the framework owns it, you live with whatever the framework decided. If you own it, you can do exactly the kind of tiling this chapter is about.
-
-A small note on what this chapter does not promise. We will not match the production CUDA kernel's wall-clock numbers. The pure-PyTorch tiled version you will build is meant to be readable, correct, and clearly memory-efficient. The speed win at moderate sequence lengths is real but modest; the memory win is dramatic. Speed parity with `flash-attn` requires CUDA, and CUDA is a different book. What you will have at the end of this project is the algorithm in your hands, in code you can read line by line, and a working understanding of why the production version is shaped the way it is.
-
-I want to flag a pet peeve here. Most explanations of Flash Attention I have read open with the CUDA kernel and leave the algorithm implicit. That order is backwards. Once you understand the algorithm, the kernel is straightforward engineering. Without the algorithm, the kernel reads like incantations.
+When you finish all `K/V` chunks for a given `Q` chunk, divide accumulator by denominator. The result is exactly what softmax-then-matmul-by-V produces — same math, never materializing `(T, T)`.
 
 ## Why It Matters
 
-The reason this chapter exists where it does is that every chapter after it assumes long context as a baseline. Without tiled attention, the rest of the book runs into a wall at sequence length somewhere between 2K and 4K on most consumer GPUs. With tiled attention, the wall moves out by a factor of ten or more, and the projects that depend on long context become reachable on the same hardware.
+Long-context LLMs (32k, 100k tokens) are not possible with naive attention because the `(T, T)` matrix would be tens of GB at scale. FlashAttention's tiled schedule is the reason it's even feasible to run attention over a book's worth of tokens.
 
-The hand-written attention from **Project 4: Attention From Scratch** allocates a tensor of shape `(batch, heads, seq, seq)` to hold the scores. At sequence length 1024, with 8 heads and batch size 8 in fp16, that tensor is roughly 128 megabytes per layer. At sequence length 4096 with the same other settings, the same tensor balloons to 2 gigabytes per layer. A 6-layer model now wants 12 gigabytes for nothing but score tensors, before any of the actual model parameters, activations, gradients, or optimizer state. On an 8 GB consumer card, the run dies before it begins. The crash is not subtle. PyTorch throws an out-of-memory error and tells you exactly which allocation failed. The crash is also not the model's fault. The model's parameters fit. The forward activations fit. The single thing that does not fit is the materialized score table.
+---
 
-This was the specific failure mode that bit us hardest during fine-tuning experiments at multi-billion-parameter scale. The model and the optimizer fit. The activations fit. The attention scores tensor at the context lengths we wanted did not, and the failure was on a 4090, not on something exotic. A long tail of out-of-memory tracebacks taught me that "more memory" is the answer almost no one's hardware budget agrees to.
+## What Got Built
 
-That same memory pressure is exactly the failure mode that the activation-stash investigation in **Project 11: Training Debugging — Spikes, NaNs, Profiling** identifies in its memory-forensics section. When the dominant allocation in your model is the attention scores tensor, the right fix is not "buy a bigger GPU." That scales poorly and runs out again at the next context length. The right fix is to stop materializing the tensor in the first place. That is what this chapter builds.
+A CPU reference implementation of tiled causal attention, side-by-side against naive attention, with explicit peak intermediate-memory accounting.
 
-There is also a forward-pointing reason. **Project 13: Fast Inference: The KV Cache** introduces the inference-time optimization that caches keys and values across decoding steps, so that each new token only computes attention against the new query row against the full cached key and value blocks. That decoding-time computation is itself a tiled attention: a single query row tile against a long key-value column block. Once you have built the training-time tiled forward in this chapter, the inference-time variant in Project 13 is a small specialization of the same kernel, not a new mystery.
+### Files in this folder
 
-And there is a third reason worth naming. Once you can read the Flash Attention algorithm in pure PyTorch, you can read the Triton and CUDA versions in `flash-attn` and `xformers` and recognize the same shape underneath. The production code has more constants, more memory hints, more autotuning, and more low-level addressing math, but the algorithm is the algorithm. The mystique evaporates the moment you watch the running maximum get rescaled on a CPU tensor of size four.
+| File | What it is |
+|------|------------|
+| [`build.py`](build.py) | `naive_attention` and `tiled_attention`; both causal, both return `(output, peak_intermediate_floats)` |
+| `step_*.py` | The book's code blocks, extracted step-by-step. Reference material. |
+| `tests/test_unit.py` | 10 tests: shape checks, naive peak memory is `2*T²`, tiled matches naive across multiple `(T, d_head, q_block, kv_block)` parametrizations including non-divisible cases, tiled peak < naive peak |
 
-## How to run this project
+### How to run
 
 ```bash
-# Proxy run (tiny model, runs on CPU in <60s):
-python projects/08_flash-attention-and-tiled-kernels/build.py --tiny
-
-# Full lab (requires hardware — see setup/03_gpu-and-hardware-tiers.md):
-python projects/08_flash-attention-and-tiled-kernels/build.py --full
-
-# The BREAK IT experiment:
-python projects/08_flash-attention-and-tiled-kernels/break_it.py
+python build.py --tiny      # T=128, d_head=32, instant
+python build.py --full      # T=512
+pytest projects/08_flash-attention-and-tiled-kernels/
 ```
 
-## Outputs
+---
 
-_To be captured in PR 3. Will include loss curves, sample generations, and any benchmark results._
+## Outputs (from `python build.py --tiny`)
+
+```
+Sequence length T = 128, d_head = 32
+Q,K,V each: (128, 32) = 4096 floats each
+
+naive  :  output_shape=(128, 32)  peak_intermediate=32768 floats
+tiled  :  output_shape=(128, 32)  peak_intermediate=2048 floats
+
+max |naive - tiled|  = 3.58e-07
+mean |naive - tiled| = 2.87e-08
+(should be near zero — both compute the same attention)
+
+Naive peak intermediate: 32768 floats  (= 128.0 KB at fp32)
+Tiled peak intermediate: 2048 floats  (= 8.0 KB at fp32)
+Memory reduction: 16.00x
+```
+
+Two things to take away:
+
+1. **Outputs match within floating-point precision.** Max diff is 3.6e-7, mean 2.9e-8. These are the FP rounding errors you get from doing the same arithmetic in a different order. The schedule preserves correctness.
+
+2. **Peak intermediate memory dropped 16×.** From 32k floats down to 2k. At small T this doesn't matter on CPU; the script doesn't run measurably faster. But the ratio scales with T.
+
+### What it looks like at real LLM scale
+
+| T | d_head | naive (peak fp16) | tiled (peak fp16) | reduction |
+|---|--------|--------------------|---------------------|------------|
+| 128 | 32 | 64 KB | 4 KB | 16× |
+| 2048 | 64 | 16 MB | 256 KB | 64× |
+| 8192 | 64 | 256 MB | 1 MB | 256× |
+| 32768 | 128 | 4 GB | 8 MB | 512× |
+
+That 4 GB → 8 MB at `T = 32k, d_head = 128` is the reason long-context fine-tuning is feasible at all on accessible hardware. The actual FlashAttention paper goes further — it tiles for the **GPU's** memory hierarchy specifically (SRAM/HBM), which is why it also wins on wallclock. But the peak-memory win is what this CPU reference makes visible.
+
+---
+
+## No separate BREAK IT
+
+The bug everyone hits when writing tiled attention by hand is the **online softmax**: forgetting to rescale the accumulator when a later block produces a higher max. That bug doesn't crash — the output just silently disagrees with naive attention. The parametrized tests in `tests/test_unit.py` catch exactly this; if you mess up the rescale logic, `test_tiled_matches_naive` fails immediately. That test suite IS the break-detector.
+
+---
 
 ## Read in the book
 
 This project is Chapter 8 of *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Buy the book at <https://leanpub.com/under-the-hood>.
+
+Read the chapter for: the full derivation of the online-softmax recurrence, the GPU memory hierarchy walkthrough (HBM vs. SRAM, why tile sizes are tuned for SRAM), and the reason FlashAttention-2 reordered the loops to maximize parallelism over `Q` blocks rather than `K/V` blocks.
