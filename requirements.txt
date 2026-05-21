@@ -1,0 +1,14 @@
+# Core dependencies for the Under the Hood code companion.
+#
+# Heavier or project-specific deps (datasets, transformers, faiss-cpu, bitsandbytes,
+# flash-attn, llama-cpp-python) live in projects/<NN>_slug/requirements-extra.txt
+# and are only installed when that project needs them.
+#
+# Install:  pip install -r requirements.txt
+# For dev:  pip install -e ".[dev]"
+
+torch>=2.2,<3.0
+numpy>=1.26,<3.0
+matplotlib>=3.8
+tiktoken>=0.6
+pytest>=7.4

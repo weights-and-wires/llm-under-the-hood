@@ -1,0 +1,105 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "under-the-hood"
+version = "0.1.0"
+description = "Code companion for the book 'Under the Hood: Build Every Layer of a Large Language Model from Scratch' by Ramchand Kumaresan."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Ramchand Kumaresan", email = "ramchand@murailabs.com" },
+]
+keywords = ["llm", "transformer", "pytorch", "education", "from-scratch"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.2,<3.0",
+    "numpy>=1.26,<3.0",
+    "matplotlib>=3.8",
+    "tiktoken>=0.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-xdist>=3.5",
+    "ruff>=0.5",
+    "pyright>=1.1.350",
+    "jupytext>=1.16",
+]
+full = [
+    "datasets>=2.18",
+    "transformers>=4.40",
+    "huggingface_hub>=0.23",
+    "faiss-cpu>=1.8",
+    "mmh3>=4.1",
+    "pandas>=2.2",
+    "tqdm>=4.66",
+]
+
+[project.urls]
+Homepage = "https://github.com/mechramc/Under-the-hood"
+Book = "https://leanpub.com/under-the-hood"
+
+[tool.setuptools]
+# No package directory yet; this is a multi-project scripts-style repo.
+# Each projects/NN_slug/ is a runnable folder, not a package.
+py-modules = []
+
+[tool.pytest.ini_options]
+minversion = "7.4"
+testpaths = ["projects", "tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests that take >30s (skipped by default; run with -m slow)",
+    "gpu: marks tests that require a CUDA device (skipped on CPU-only runners)",
+]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# projects/ contains code extracted verbatim from the book — it's reference
+# material, not maintained source. Lint our own tooling instead.
+extend-exclude = ["_generated/", "projects/", "**/outputs/"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line length handled by formatter
+    "E741",  # ambiguous variable names (l, I, O) — common in math/ML code
+]
+
+[tool.pyright]
+# Same rationale as ruff: projects/ holds book-extracted code; we only
+# type-check our maintained tooling.
+include = ["tools", "tests", "conftest.py"]
+exclude = ["**/__pycache__", "**/outputs", "_generated", "projects"]
+typeCheckingMode = "basic"
+pythonVersion = "3.11"
+reportMissingImports = "warning"
+reportMissingTypeStubs = "none"

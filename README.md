@@ -8,15 +8,141 @@
 
 **Build it. Break it. Measure it.**
 
+📖 **Buy the book at [leanpub.com/under-the-hood](https://leanpub.com/under-the-hood)** — this repository is the code companion.
+
 ---
 
-## What This Book Is
+## What This Repo Is
 
-Most LLM books teach you to *use* models. This one teaches you to *build* them — every layer, every optimizer step, every cache, every quantization scheme — and then to deliberately break each piece so you understand why it exists in the first place.
+This is the runnable code companion for the book *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Each of the book's **35 projects** has its own folder under `projects/`, with a runnable `build.py`, a `break_it.py` experiment, per-step reference files, and captured outputs.
 
-It is a workshop in book form. Twenty projects, ~470 pages, one tight spiral that takes you from a single autograd scalar all the way to fusing independently trained specialists into a routed system. No black boxes. No "import library, call method." You write the code, you run it, you break it, you measure what broke.
+You can do the entire book by reading the book and typing the code yourself — that's the recommended path. But when you get stuck, or want to compare your code to a reference, or want to skip ahead and read the working version before building it yourself, this repo is where you look.
 
-If you have ever read a transformer paper and felt that the diagram and the code were in two different universes — this book closes that gap.
+The book itself (PDF + EPUB) is distributed separately via Leanpub. This repo intentionally does **not** ship the book — it ships the code.
+
+---
+
+## Quick Start
+
+```bash
+git clone https://github.com/mechramc/Under-the-hood.git
+cd Under-the-hood
+
+# Create an environment (any tool works; this is one option)
+python -m venv .venv && source .venv/bin/activate     # or .venv\Scripts\activate on Windows
+
+# Install
+pip install -r requirements.txt
+
+# Run any project's main script
+python projects/01_the-learning-machine/build.py --tiny
+```
+
+Full setup instructions: see [`setup/`](setup/).
+
+---
+
+## The 35 Projects
+
+Read the book and the per-project READMEs in order. Each project builds on the previous one.
+
+### Foundations
+
+| #  | Project | Folder |
+|----|---------|--------|
+| 1  | The Learning Machine — scalar autograd, neurons, MLP, training loop. | [`projects/01_the-learning-machine`](projects/01_the-learning-machine) |
+| 2  | Predicting the Next Character — bigram counts → learned embeddings → NLL. | [`projects/02_predicting-the-next-character`](projects/02_predicting-the-next-character) |
+| 3  | Building a Tokenizer — BPE from scratch; vocab size as a tunable knob. | [`projects/03_building-a-tokenizer`](projects/03_building-a-tokenizer) |
+| 4  | Attention from Scratch — Q/K/V, scaled dot-product, masking, multi-head. | [`projects/04_attention-from-scratch`](projects/04_attention-from-scratch) |
+
+### Building a GPT
+
+| #  | Project | Folder |
+|----|---------|--------|
+| 5  | Your GPT from a Blank File — the smallest complete system. | [`projects/05_your-gpt-from-a-blank-file`](projects/05_your-gpt-from-a-blank-file) |
+| 6  | From Prototype to nanoGPT — side-by-side with the reference. | [`projects/06_from-prototype-to-nanogpt`](projects/06_from-prototype-to-nanogpt) |
+| 7  | The Details That Matter — norms, activations, positional encodings. | [`projects/07_the-details-that-matter`](projects/07_the-details-that-matter) |
+| 8  | Flash Attention and Tiled Kernels — memory-efficient attention. | [`projects/08_flash-attention-and-tiled-kernels`](projects/08_flash-attention-and-tiled-kernels) |
+
+### Training at Scale
+
+| #  | Project | Folder |
+|----|---------|--------|
+| 9  | Pretraining on the Real Web — FineWeb-EDU, mixed precision, val-bpb. | [`projects/09_pretraining-on-the-real-web`](projects/09_pretraining-on-the-real-web) |
+| 10 | Data Curation and Contamination — what makes good pretraining data. | [`projects/10_data-curation-and-contamination`](projects/10_data-curation-and-contamination) |
+| 11 | Training Debugging: Spikes, NaNs, and Profiling. | [`projects/11_training-debugging-spikes-nans-and-profiling`](projects/11_training-debugging-spikes-nans-and-profiling) |
+| 12 | Distributed Training: FSDP and ZeRO (single-box proxy). | [`projects/12_distributed-training-fsdp-and-zero-single-box-proxy`](projects/12_distributed-training-fsdp-and-zero-single-box-proxy) |
+
+### Inference and Serving
+
+| #  | Project | Folder |
+|----|---------|--------|
+| 13 | Fast Inference: The KV Cache. | [`projects/13_fast-inference-the-kv-cache`](projects/13_fast-inference-the-kv-cache) |
+| 14 | Speculative Decoding. | [`projects/14_speculative-decoding`](projects/14_speculative-decoding) |
+| 15 | Grouped Query Attention. | [`projects/15_grouped-query-attention`](projects/15_grouped-query-attention) |
+| 16 | Long-Context Extension (RoPE, YaRN, NTK-Aware). | [`projects/16_long-context-extension-rope-yarn-ntk-aware`](projects/16_long-context-extension-rope-yarn-ntk-aware) |
+| 17 | Production Serving: Continuous Batching and PagedAttention. | [`projects/17_production-serving-continuous-batching-and-pagedattention`](projects/17_production-serving-continuous-batching-and-pagedattention) |
+
+### Scaling and Experimentation
+
+| #  | Project | Folder |
+|----|---------|--------|
+| 18 | Mixture of Experts — router, top-k, expert utilization, load balancing. | [`projects/18_mixture-of-experts`](projects/18_mixture-of-experts) |
+| 19 | Scaling Laws — depth sweeps, compute-optimal training. | [`projects/19_scaling-laws`](projects/19_scaling-laws) |
+| 20 | Autonomous Experimentation — point an agent at `program.md`. | [`projects/20_autonomous-experimentation`](projects/20_autonomous-experimentation) |
+
+### Aligning and Evaluating
+
+| #  | Project | Folder |
+|----|---------|--------|
+| 21 | Fine-Tuning and Instruction Tuning — SFT, conversational tuning, LoRA. | [`projects/21_fine-tuning-and-instruction-tuning`](projects/21_fine-tuning-and-instruction-tuning) |
+| 22 | Evaluation Methodology. | [`projects/22_evaluation-methodology`](projects/22_evaluation-methodology) |
+| 23 | Reward Models and RLHF — reward dataset, RM training, GRPO, KL leash. | [`projects/23_reward-models-and-rlhf`](projects/23_reward-models-and-rlhf) |
+| 24 | DPO and Preference Optimization. | [`projects/24_dpo-and-preference-optimization`](projects/24_dpo-and-preference-optimization) |
+
+### Reasoning, Tools, and Retrieval
+
+| #  | Project | Folder |
+|----|---------|--------|
+| 25 | Test-Time Reasoning (CoT, Self-Consistency, Best-of-N). | [`projects/25_test-time-reasoning-cot-self-consistency-best-of-n`](projects/25_test-time-reasoning-cot-self-consistency-best-of-n) |
+| 26 | Tool Use and Function Calling. | [`projects/26_tool-use-and-function-calling`](projects/26_tool-use-and-function-calling) |
+| 27 | Quantization and Deployment — FP32 → INT8 → INT4 → GGUF. | [`projects/27_quantization-and-deployment`](projects/27_quantization-and-deployment) |
+| 28 | Retrieval-Augmented Generation. | [`projects/28_retrieval-augmented-generation`](projects/28_retrieval-augmented-generation) |
+
+### Beyond the Transformer
+
+| #  | Project | Folder |
+|----|---------|--------|
+| 29 | Multimodal: A Tiny Vision-Language Model. | [`projects/29_multimodal-a-tiny-vision-language-model`](projects/29_multimodal-a-tiny-vision-language-model) |
+| 30 | Non-Transformer Architectures (Mamba, RWKV). | [`projects/30_non-transformer-architectures-mamba-rwkv`](projects/30_non-transformer-architectures-mamba-rwkv) |
+
+### Modular Composition
+
+| #  | Project | Folder |
+|----|---------|--------|
+| 31 | Layer Freezing and Transfer — freeze ratios, CKA, training speed vs forgetting. | [`projects/31_layer-freezing-and-transfer`](projects/31_layer-freezing-and-transfer) |
+| 32 | Fusing Independently Trained Specialists — shared base, specialist heads, router. | [`projects/32_fusing-independently-trained-specialists`](projects/32_fusing-independently-trained-specialists) |
+| 33 | The Interface Specification — machine-readable contracts; loud vs silent failures. | [`projects/33_the-interface-specification`](projects/33_the-interface-specification) |
+| 34 | Incremental Assembly — order independence; what "modular" actually means. | [`projects/34_incremental-assembly`](projects/34_incremental-assembly) |
+| 35 | Your Architecture — final project; build one of your own. | [`projects/35_your-architecture`](projects/35_your-architecture) |
+
+---
+
+## The Method: Build → Break → Measure
+
+Each project follows the same disciplined rhythm:
+
+1. **Hook** — the question the project answers.
+2. **The Concept** — the idea in plain English, before any code.
+3. **Why It Matters** — what fails in the real world without this piece.
+4. **The Build** — step-by-step implementation, written so shapes stay honest.
+5. **Break It** — a deliberate sabotage of the system, with predictions and observations.
+6. **Optional Homework** — full lab, proxy lab (for limited hardware), result-guided version.
+7. **Questions To Answer** — what you should be able to defend after finishing.
+8. **Go Further** — research anchors and next directions.
+9. **What You Now Know** — the explicit deltas in your mental model.
+
+Reading the book without breaking the code is half the experience. The breaks are where the lessons actually live.
 
 ---
 
@@ -31,95 +157,63 @@ You should be comfortable with Python and have seen a tensor before. Everything 
 
 ---
 
-## The Method: Build → Break → Measure
-
-Each project has the same disciplined rhythm:
-
-1. **Hook** — the question the project answers.
-2. **The Concept** — the idea in plain English, before any code.
-3. **Why It Matters** — what fails in the real world without this piece.
-4. **The Build** — step-by-step implementation, written so shapes stay honest and code stays readable.
-5. **Break It** — a deliberate sabotage of the system, with predictions and observations, so you learn *why* the working version works.
-6. **Optional Homework** — full lab, proxy lab (for limited hardware), and result-guided versions.
-7. **Questions To Answer** — the small set of things you should be able to defend after finishing.
-8. **Go Further** — research anchors and next directions.
-9. **What You Now Know** — the explicit deltas in your mental model.
-
-Reading the book without breaking the code is half the experience. The breaks are where the lessons actually live.
-
----
-
-## The Twenty Projects
-
-### Foundations
-1. **The Learning Machine** — a scalar autograd engine, a neuron, a tiny MLP, and a training loop you wrote yourself.
-2. **Predicting the Next Character** — bigram counts → learned embeddings → temperature → negative log-likelihood, end to end.
-3. **Building a Tokenizer** — byte-pair encoding from scratch; vocabulary size as a tunable knob with real tradeoffs.
-4. **Attention from Scratch** — Q/K/V, scaled dot-product, masking, multi-head, entropy per head, on real text.
-
-### Building a GPT
-5. **Your GPT from a Blank File** — the smallest complete system: tokenizer → batches → transformer → schedule → checkpoints → samples.
-6. **From Prototype to nanoGPT** — side-by-side with Karpathy's reference; what production-shape code looks like and why.
-7. **The Details That Matter** — LayerNorm vs RMSNorm, GELU/SwiGLU, learned positional embeddings vs RoPE, instrumentation.
-
-### Training at Scale
-8. **Pretraining on the Real Web** — FineWeb-EDU via nanochat, mixed precision, gradient accumulation, LR sweeps, val-bpb.
-9. **Fast Inference: The KV Cache** — naive autoregressive generation → cached → benchmarked → sliding window.
-10. **Grouped Query Attention** — MHA → GQA → MQA, with KV-cache shape and benchmark tradeoffs made explicit.
-11. **Mixture of Experts** — router, top-k, expert utilization, load balancing loss, active vs total parameters.
-12. **Scaling Laws** — depth sweeps, compute-optimal training, fitting the law, extrapolating to a target loss.
-13. **Autonomous Experimentation** — pointing an agent at a `program.md` and reading the git history as a research diary.
-
-### Aligning and Deploying
-14. **Fine-Tuning and Instruction Tuning** — SFT, conversational tuning, LoRA vs full FT, catastrophic forgetting on purpose.
-15. **Reward Models and RLHF** — reward dataset, RM training, GRPO, KL leash, what reward hacking actually looks like.
-16. **Quantization and Deployment** — FP32 → INT8 → INT4 → GGUF → llama.cpp; where quality breaks before grammar does.
-
-### Modular Composition
-17. **Layer Freezing and Transfer** — freeze ratios, CKA, training speed vs forgetting vs domain gain.
-18. **Fusing Independently Trained Specialists** — shared base, specialist heads, router on a mixed validation set, oracle gap.
-19. **The Interface Specification** — a machine-readable contract for modular specialists; loud failures vs silent ones.
-20. **Incremental Assembly** — order independence, scaling limits, and what "modular" actually has to mean to be real.
-
----
-
-## What You Walk Away With
-
-By the end you will have:
-
-- A scalar autograd engine you can defend line by line.
-- A character-level model, a BPE tokenizer, and a multi-head attention block — all written by hand.
-- A small GPT trained end-to-end on real web data, instrumented and checkpointed.
-- A KV cache, a GQA implementation, and a benchmarked MoE layer.
-- A reward model and a working GRPO loop on GSM8K.
-- A quantized model exported to GGUF and running in `llama.cpp`.
-- A fused multi-specialist system with a typed interface contract.
-- And — more importantly — a debugging instinct. You will read a training curve and *know* what is wrong.
-
----
-
-## How to Use This Book
-
-- **Read in order.** Each project's "Starting Point" assumes the previous one's code is in your hands.
-- **Type the code yourself.** Not because copy-paste is forbidden — because the goal is to internalize shapes, not to produce artifacts.
-- **Run every Break It.** Predict what will happen first, then run it, then write down what actually happened. The gap between prediction and observation is the lesson.
-- **Do at least the proxy lab.** Even if you do not have an H100, the result-guided versions are designed so you still get the structural insight.
-- **Keep a notebook.** Each project asks you to record specific metrics. The notebook *is* the textbook by the end.
-
----
-
 ## Hardware Notes
 
-The book is honest about what each project needs:
+Every project supports a `--tiny` mode that runs on CPU in under 60 seconds. The full lab versions have realistic compute requirements:
 
-| Project Range | Realistic Hardware |
+| Project Range | Realistic Hardware for the Full Lab |
 |---|---|
 | Projects 1–7 | CPU or any laptop GPU |
-| Projects 8–13 | One consumer GPU (8–24 GB) or short cloud rental |
-| Projects 14–16 | One consumer GPU; LoRA paths designed for tight VRAM |
-| Projects 17–20 | One GPU for full labs; proxy versions documented for all |
+| Projects 8–17 | One consumer GPU (8–24 GB) or short cloud rental |
+| Projects 18–27 | One consumer GPU; LoRA paths designed for tight VRAM |
+| Projects 28–35 | One GPU for full labs; proxy versions documented for all |
 
-Every project has a **proxy lab** for limited hardware and a **result-guided version** for readers who cannot run anything at all. The pedagogy works at all three tiers.
+See [`setup/03_gpu-and-hardware-tiers.md`](setup/03_gpu-and-hardware-tiers.md) for the detailed breakdown.
+
+---
+
+## Repository Layout
+
+```
+Under-the-hood/
+├── README.md            # this file
+├── LICENSE              # MIT
+├── pyproject.toml       # deps + pytest + ruff + pyright config
+├── requirements.txt     # pinned dependencies
+├── conftest.py          # shared pytest fixtures (tiny_model_config, seed control)
+├── setup/               # environment, dependencies, GPU tiers, datasets
+├── tools/               # extract_code.py (regenerates per-project files from book source)
+└── projects/            # 35 project folders (NN_slug/)
+    └── NN_slug/
+        ├── README.md    # prose: Hook, Concept, Why It Matters, outputs
+        ├── build.py     # canonical runnable
+        ├── break_it.py  # the sabotage experiment
+        ├── step_*.py    # one file per Build step (pedagogical references)
+        ├── outputs/     # captured loss curves, samples, benchmarks
+        └── tests/       # pytest smoke + unit tests
+```
+
+---
+
+## Running Tests
+
+```bash
+pytest                                  # all projects, default tier 1 + tier 2
+pytest projects/01_the-learning-machine # one project
+pytest -m "not slow and not gpu"        # skip the heavy ones (this is the default)
+UTH_RUN_SLOW=1 pytest                   # include @pytest.mark.slow tests
+```
+
+---
+
+## Contributing
+
+Issues and corrections are welcome. Open a GitHub issue with:
+- The project number and file
+- What you observed
+- What you expected
+
+For substantive contributions (new BREAK IT experiments, additional benchmarks, better proxy datasets), open a pull request and link the relevant book chapter.
 
 ---
 
@@ -141,13 +235,31 @@ Modern LLMs are not magic. They are a stack of carefully-tuned engineering decis
 
 **Ramchand Kumaresan** writes systems-level engineering manuals for AI practitioners. His work focuses on the parts of the stack that are usually skipped: the failure modes, the diagnostics, the parts of the codebase that exist as scar tissue from a real outage. *Under the Hood* is the first book in a series on building production-grade machine learning systems from first principles.
 
+Contact: <ramchand@murailabs.com>
+
 ---
 
-## License & Distribution
+## License
 
-This repository hosts the README and project metadata for the book *Under the Hood: Build Every Layer of a Large Language Model from Scratch*.
+Code in this repository is released under the [MIT License](LICENSE). The book text (PDF / EPUB, distributed via Leanpub) is copyrighted separately — see the copyright page in the book.
 
-The PDF is distributed separately. For access, reach out to the author.
+You are free to copy, modify, and redistribute the code in this repository, with attribution appreciated but not required.
+
+---
+
+## Citation
+
+If you use this work in academic writing:
+
+```bibtex
+@book{kumaresan2026underthehood,
+  author    = {Kumaresan, Ramchand},
+  title     = {Under the Hood: Build Every Layer of a Large Language Model from Scratch},
+  year      = {2026},
+  publisher = {Leanpub},
+  url       = {https://leanpub.com/under-the-hood}
+}
+```
 
 ---
 

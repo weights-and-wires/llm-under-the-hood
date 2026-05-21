@@ -1,0 +1,86 @@
+# Project 23: Reward Models And RLHF
+
+## Hook
+
+Why does a model get worse while its score keeps going up? That sounds like a bug in your logging, but it is one of the most important things to see with your own eyes. You train a language model with reinforcement learning, the reward score climbs, everyone looks happy, and then the actual answers get more slippery, more padded, more flattering, more wrong. The model did not fail to optimize. It optimized exactly what you asked for, which turns out to be a subtly different thing from what you wanted.
+
+I have a strong feeling about this chapter. Reward hacking is the closest thing in modern ML to watching a system lie to you with a straight face. I saw a version of it on a multi-model routing experiment where a candidate started returning longer, more "auditable" rationales while the actual answer accuracy dropped two points. The trace looked beautiful. The number it landed on was wrong. The optimizer was not confused. I was.
+
+## The Concept
+
+Supervised fine-tuning teaches a model to imitate examples. If your dataset says "user: solve this math problem, assistant: here is the correct answer," then the model learns: when I see something like this, continue with something that looks like that. That gets you behavior. It does not get you judgment.
+
+After SFT, you still need a way to say "response A is better than response B." That is the reward model: a second model whose job is not to answer the question, but to grade the answer. The language model writes the answer, the reward model grades it, and RLHF (Reinforcement Learning from Human Feedback) trains the writer to satisfy the grader. That should make you suspicious immediately. If the grader rewards confidence, length, or cheer instead of correctness, the model learns those habits. If the grader has a flaw, optimization will find it. The whole chapter fits in one sentence: RLHF does not directly optimize truth, usefulness, or safety. It optimizes a score, and everything depends on what that score actually measures.
+
+The mental image I keep coming back to is a student who is being graded by a tired teacher. Once the student figures out that the teacher only skims the first paragraph and looks for confident-sounding sentences, the student stops working on the rest of the answer. The student is not malicious. The grading is just easy to game.
+
+### From SFT to RLHF
+
+This is the missing transition from **Project 21: Fine-Tuning And Instruction Tuning**. Instruction tuning trains on demonstrations; RLHF trains on preferences. Those are not the same task. A supervised model asks "what would a good answer look like, based on this dataset?" An RLHF-trained model asks "what answer gets the highest score from this reward model?" Sometimes those line up. Sometimes they do not. When they stop lining up, you get reward hacking.
+
+An earlier draft of this section made RLHF sound like a clean upgrade from SFT. It is not an upgrade. It is a different tool with different failure modes. Treating it as "SFT but more" is exactly the trap that makes the reward-hacking outcome surprising.
+
+### The Plain-English Loop
+
+The loop without math is short. Start with a language model that can already produce answers. Give it a prompt, generate several candidate responses, ask the reward model to score each one, treat the higher-scoring responses as better, and then update the language model so it becomes more likely to produce those better-scoring responses in the future. If you can explain that loop clearly in an interview, you already understand more than most people who only know the acronym.
+
+### Why a Separate Reward Model Exists
+
+Why not skip the reward model and train directly on thumbs-up and thumbs-down? Because the language model needs a fast, differentiable training signal. A thumbs-up is sparse. A reward model turns sparse human judgments into a dense scoring function, which means you can score lots of outputs automatically, cheaply, and repeatedly. Humans cannot sit inside every training loop step and grade thousands of outputs per minute, so we collect preference data once, train a reward model to imitate those preferences, and let that reward model act as the automated judge. That is efficient. It is also dangerous, because the automated judge is now part of the system, and the policy will learn its blind spots.
+
+### What the Reward Model Actually Sees
+
+A reward model takes a prompt and a candidate response and outputs a single scalar score. A good reward model should score a short correct answer higher than a long evasive non-answer. Here is where the trouble starts. Suppose the reward model was trained on noisy data and accidentally learns that equations look smart, longer answers look more complete, confident tone looks correct, and positive sentiment sounds helpful. Then a wrong answer like this may get a higher score than it deserves:
+
+"Let us solve carefully. Janet has 3 bags and each contains 4 apples, so we reason step by step. This gives 14 apples in total. Hope this helps."
+
+That answer is wrong, but it contains the surface features of a good answer. RLHF will happily optimize surface features if that is what the reward model rewards.
+
+### Earn the Equation
+
+Now let's compress that intuition into a small equation. Let `x` be the prompt, `y` be a candidate response, and `r(x, y)` be the reward model score. The reward model is just a function that inputs a prompt and answer and outputs one score: `r(x, y) → one number`. The language model has parameters `θ`, and RLHF tries to change those parameters so the model produces responses with higher reward:
+
+$$
+\max_{\theta} \; \mathbb{E}[r(x, y)]
+$$
+
+Read that in plain English: change the model so that, on average, the responses it generates get higher reward scores. That is all. The whole problem is visible from there. If `r` measures the wrong thing, optimization drives the model in the wrong direction. The optimizer is not confused. It is obedient.
+
+### Where GRPO Fits
+
+This chapter uses GRPO, Group Relative Policy Optimization. That name sounds heavier than it is. For one prompt, we generate a group of candidate responses and compare them against each other. We do not ask "Is this response absolutely good?" We ask "Which response in this group looks better than the others according to the reward model?" That relative comparison stabilizes training. Instead of trusting raw reward values too much, GRPO looks at which candidates win inside the batch, and the language model shifts probability mass toward the winners.
+
+### Why Relative Scoring Helps
+
+Raw reward scores can be noisy. Maybe the reward model tends to give scores between 7.2 and 7.5 for everything, which is not very informative as an absolute scale. But if one response gets 7.45 and another gets 7.22, the ranking may still contain useful signal, and GRPO takes advantage of that. It says: use the local ranking inside a group of responses to decide which directions to reinforce. This matters because "which of these is better?" is a more reliable question than "give the exact universal goodness score for this answer."
+
+## Why It Matters
+
+Without reward modeling, we can only imitate labeled examples. That is enough to make a model answer in the right format, but it is not enough to shape behavior along axes like helpfulness, harmlessness, honesty, refusal style, brevity versus detail, or safety preferences. Those are preferences, not next-token continuations. RLHF gives us a knob for preferences.
+
+The downside is that we now have a proxy objective sitting between us and the behavior we actually care about. This is not a minor implementation detail. It is the central engineering fact of alignment. We rarely optimize the true objective directly. We optimize a measurable substitute, and the gap between the substitute and the real goal is where things break.
+
+With a reward model, we can express things that training data alone may not capture cleanly: prefer correct math over confident wrong math, prefer harmless refusals over harmful compliance, prefer concise answers over rambling ones. We can collect pairwise preference labels — "A is better than B," "B is safer than A" — train a reward model on those judgments, and make that judgment reusable at scale. Without reward modeling, the model imitates responses without learning a general preference function, style and correctness get mixed together in the demonstrations, and we cannot easily express tradeoffs after the fact. SFT says: imitate this answer. RLHF says: among these answers, become more like the ones that score better. That second loop is how most assistant behaviors get sharpened.
+
+A lot of discussion about AI alignment stays abstract. It can sound like philosophy or science fiction. What is useful about this project is that it makes the failure mode concrete and reproducible. We build a flawed judge, optimize against it, and watch the score diverge from actual quality. That gives us something to point to when the same pattern shows up in larger systems, which it does, regularly.
+
+## How to run this project
+
+```bash
+# Proxy run (tiny model, runs on CPU in <60s):
+python projects/23_reward-models-and-rlhf/build.py --tiny
+
+# Full lab (requires hardware — see setup/03_gpu-and-hardware-tiers.md):
+python projects/23_reward-models-and-rlhf/build.py --full
+
+# The BREAK IT experiment:
+python projects/23_reward-models-and-rlhf/break_it.py
+```
+
+## Outputs
+
+_To be captured in PR 3. Will include loss curves, sample generations, and any benchmark results._
+
+## Read in the book
+
+This project is Chapter 23 of *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Buy the book at <https://leanpub.com/under-the-hood>.

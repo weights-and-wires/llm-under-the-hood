@@ -1,0 +1,54 @@
+# Build artifacts
+*.pdf
+*.epub
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Extractor staging area (manual promotion to projects/ only)
+_generated/
+
+# Author-facing tracking docs (PRIVATE, never committed)
+GAPS.md
+
+# Per-project outputs (curated outputs added back with `git add -f`)
+projects/**/outputs/*
+!projects/**/outputs/.gitkeep
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Local datasets / checkpoints / caches (large; users fetch on their own)
+data/
+checkpoints/
+models/
+.cache/
+*.gguf
+*.bin
+*.safetensors
