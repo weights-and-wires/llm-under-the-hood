@@ -29,6 +29,7 @@ _generated/
 
 # Author-facing tracking docs (PRIVATE, never committed)
 GAPS.md
+PROGRESS.md
 
 # Per-project outputs (curated outputs added back with `git add -f`)
 projects/**/outputs/*
