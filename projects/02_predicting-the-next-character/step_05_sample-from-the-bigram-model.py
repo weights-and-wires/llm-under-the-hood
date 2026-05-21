@@ -7,15 +7,15 @@ For the full assembled, runnable build, use build.py in this same folder.
 
 g = torch.Generator().manual_seed(42)
 
-ix = stoi['.']
+ix = stoi["."]
 out = []
 
 while True:
     probs = P[ix]
     ix = torch.multinomial(probs, num_samples=1, replacement=True, generator=g).item()
     ch = itos[ix]
-    if ch == '.':
+    if ch == ".":
         break
     out.append(ch)
 
-print(''.join(out))
+print("".join(out))

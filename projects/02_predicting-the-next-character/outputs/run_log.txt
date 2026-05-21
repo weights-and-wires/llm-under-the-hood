@@ -1,0 +1,26 @@
+# Project 2 run log
+corpus_size      : 80 names
+vocab_size       : 24
+block_size       : 3
+embed_dim        : 8
+hidden_size      : 64
+steps            : 500
+
+# bigram model (no learning, just counts + smoothing)
+bigram_NLL       : 2.3337
+bigram_samples   : ['szkbubf', 'a', 'llvilrtvdhi', 'a', 'nera', 'chsotepruyfdia', 'vmnoctpdvtapcsckiomctzs', 'mallia', 'gipdwkcwimz', 'evgta']
+
+# neural model
+n_parameters     : 3352
+train_loss_final : 1.8098
+val_loss_final   : 2.5044
+
+# temperature sweep
+T=0.5:   ['aanisley', 'alia', 'ara', 'daile', 'aaria', 'hanna', 'aula', 'aalia']
+T=1.0:   ['sik', 'aha', 'amlovil', 'avdh', 'bella', 'aha', 'sete', 'ruylara']
+T=1.5:   ['siklah', 'baoliviortvdh', 'belnereprhsetepruyleyi', 'vmnoctldvta', 'ciariomctrsemmdlia', 'onpdika', 'smo', 'emm']
+
+# comparison
+  bigram NLL:  2.3337
+  neural val:  2.5044
+  delta:       -0.1707

@@ -9,6 +9,6 @@ chars = sorted(list(set(text)))
 stoi = {ch: i for i, ch in enumerate(chars)}
 itos = {i: ch for ch, i in stoi.items()}
 
-chars = ['.'] + sorted(list(set(text.replace('\n', ''))))
+chars = ["."] + sorted(list(set(text.replace("\n", ""))))
 stoi = {ch: i for i, ch in enumerate(chars)}
 itos = {i: ch for ch, i in stoi.items()}

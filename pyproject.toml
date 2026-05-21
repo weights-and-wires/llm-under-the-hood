@@ -63,14 +63,18 @@ testpaths = ["projects", "tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-markers = [
-    "slow: marks tests that take >30s (skipped by default; run with -m slow)",
-    "gpu: marks tests that require a CUDA device (skipped on CPU-only runners)",
-]
+# importlib mode lets multiple projects each have their own `tests/test_unit.py`
+# without colliding in sys.modules. Without this, pytest uses "prepend" mode and
+# only the first tests/test_unit.py loaded wins.
 addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
+    "--import-mode=importlib",
+]
+markers = [
+    "slow: marks tests that take >30s (skipped by default; run with -m slow)",
+    "gpu: marks tests that require a CUDA device (skipped on CPU-only runners)",
 ]
 
 [tool.ruff]

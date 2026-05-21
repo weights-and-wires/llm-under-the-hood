@@ -1,0 +1,16 @@
+# Project 2 BREAK IT — collapse all embedding rows to the same vector
+baseline:        train=1.8098  val=2.5044
+collapsed C:     train=2.7993  val=2.7817
+max row diff:    0.000000
+
+Lesson: an embedding's job is to route distinct token IDs to distinct
+vectors. If every row of C is the same, the lookup C[X] returns identical
+vectors for every character — the network sees one input regardless of
+actual characters. The flattened context becomes a constant, the hidden
+layer can only encode 'how long until end-of-sequence', and the model
+regresses to a global character-frequency predictor.
+
+Note: if you let training continue, gradients flowing back through C
+will gradually re-introduce row distinctions. The 'collapse + retrain'
+demo above intentionally collapses BEFORE training so we can watch loss
+plateau higher than baseline.

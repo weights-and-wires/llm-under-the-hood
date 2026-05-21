@@ -9,7 +9,7 @@ log_likelihood = 0.0
 n = 0
 
 for word in words:
-    chs = ['.'] + list(word) + ['.']
+    chs = ["."] + list(word) + ["."]
     for ch1, ch2 in zip(chs, chs[1:]):
         i = stoi[ch1]
         j = stoi[ch2]
