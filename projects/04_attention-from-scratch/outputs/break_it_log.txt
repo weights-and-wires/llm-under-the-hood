@@ -1,0 +1,13 @@
+# Project 4 BREAK IT — remove 1/sqrt(d_head) scaling
+
+max possible entropy: 2.079 (uniform over T=8)
+
+scaled, d_head=16              mean_entropy=1.0783
+unscaled, d_head=16            mean_entropy=0.4171
+unscaled, d_head=64            mean_entropy=0.2079
+
+Lesson: dot products of d-dimensional vectors grow with d. Unscaled scores
+saturate softmax, collapsing each row to one-hot. Gradients through that
+saturated softmax are vanishingly small for the suppressed positions, so
+the model can't learn to attend to the right place. The 1/sqrt(d_head)
+factor keeps scores in a useful magnitude range. It is NOT cosmetic.
