@@ -456,21 +456,44 @@ def promote(out_dir: Path, projects_dir: Path, force: bool) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--chapters-dir", type=Path, default=DEFAULT_CHAPTERS,
-                        help=f"Path to chapters/ markdown source (default: {DEFAULT_CHAPTERS})")
-    parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT,
-                        help=f"Where to write extracted projects (default: {DEFAULT_OUT})")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Parse and report stats; do not write any files.")
-    parser.add_argument("--report", action="store_true",
-                        help="Regenerate GAPS.md from the current projects/ state without re-extracting.")
-    parser.add_argument("--promote", action="store_true",
-                        help="After extraction, copy _generated/* into projects/*. Refuses to overwrite without --promote-force.")
-    parser.add_argument("--promote-force", action="store_true",
-                        help="With --promote, overwrite existing projects/ folders. Destructive.")
-    parser.add_argument("--placeholders-only", action="store_true",
-                        help="Write only per-project README.md files (no step_*.py, build.py, or break_it.py). For PR 1's scaffold-without-code phase.")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--chapters-dir",
+        type=Path,
+        default=DEFAULT_CHAPTERS,
+        help=f"Path to chapters/ markdown source (default: {DEFAULT_CHAPTERS})",
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=DEFAULT_OUT,
+        help=f"Where to write extracted projects (default: {DEFAULT_OUT})",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Parse and report stats; do not write any files."
+    )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Regenerate GAPS.md from the current projects/ state without re-extracting.",
+    )
+    parser.add_argument(
+        "--promote",
+        action="store_true",
+        help="After extraction, copy _generated/* into projects/*. Refuses to overwrite without --promote-force.",
+    )
+    parser.add_argument(
+        "--promote-force",
+        action="store_true",
+        help="With --promote, overwrite existing projects/ folders. Destructive.",
+    )
+    parser.add_argument(
+        "--placeholders-only",
+        action="store_true",
+        help="Write only per-project README.md files (no step_*.py, build.py, or break_it.py). For PR 1's scaffold-without-code phase.",
+    )
     args = parser.parse_args()
 
     if not args.chapters_dir.exists():
@@ -502,8 +525,10 @@ def main() -> int:
         }
         statuses.append(status)
         marker = f"Project {ch.project_n}" if ch.is_project else "(non-project)"
-        print(f"  {p.name:14s} {marker:14s} {ch.total_python_blocks:3d} blocks, "
-              f"{len(ch.build_steps):2d} steps")
+        print(
+            f"  {p.name:14s} {marker:14s} {ch.total_python_blocks:3d} blocks, "
+            f"{len(ch.build_steps):2d} steps"
+        )
 
     total = sum(s["python_blocks"] for s in statuses)
     print(f"\nTotal Python blocks across all chapters: {total}")
@@ -531,7 +556,9 @@ def main() -> int:
     if args.promote:
         return promote(args.out_dir, PROJECTS_DIR, force=args.promote_force)
 
-    print(f"\nExtraction complete. {sum(1 for s in statuses if s['is_project'])} projects written to {args.out_dir}/.")
+    print(
+        f"\nExtraction complete. {sum(1 for s in statuses if s['is_project'])} projects written to {args.out_dir}/."
+    )
     print("Promote to projects/ with: python tools/extract_code.py --promote")
     return 0
 
