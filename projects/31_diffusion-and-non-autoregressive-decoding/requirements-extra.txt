@@ -1,0 +1,11 @@
+# Extra dependency for Project 31: Diffusion and Non-Autoregressive Decoding.
+#
+# The lab wraps the diffusion decode loop around a pretrained BERT masked
+# language model (bert-base-uncased) as its mask predictor — the only project
+# that uses a pretrained model rather than building from scratch.
+#
+# transformers >= 4.45 is required for the `dtype=` argument to from_pretrained
+# (older releases used the now-deprecated `torch_dtype=`).
+#
+# Install:  pip install -r projects/31_diffusion-and-non-autoregressive-decoding/requirements-extra.txt
+transformers>=4.45

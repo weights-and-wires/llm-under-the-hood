@@ -14,7 +14,7 @@
 
 ## What This Repo Is
 
-This is the runnable code companion for the book *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Each of the book's **35 projects** has its own folder under `projects/`, with a runnable `build.py`, a `break_it.py` experiment, per-step reference files, and captured outputs.
+This is the runnable code companion for the book *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Each of the book's **36 projects** has its own folder under `projects/`, with a runnable `build.py`, a `break_it.py` experiment, per-step reference files, and captured outputs.
 
 You can do the entire book by reading the book and typing the code yourself — that's the recommended path. But when you get stuck, or want to compare your code to a reference, or want to skip ahead and read the working version before building it yourself, this repo is where you look.
 
@@ -42,7 +42,7 @@ Full setup instructions: see [`setup/`](setup/).
 
 ---
 
-## The 35 Projects
+## The 36 Projects
 
 Read the book and the per-project READMEs in order. Each project builds on the previous one.
 
@@ -115,16 +115,17 @@ Read the book and the per-project READMEs in order. Each project builds on the p
 |----|---------|--------|
 | 29 | Multimodal: A Tiny Vision-Language Model. | [`projects/29_multimodal-a-tiny-vision-language-model`](projects/29_multimodal-a-tiny-vision-language-model) |
 | 30 | Non-Transformer Architectures (Mamba, RWKV). | [`projects/30_non-transformer-architectures-mamba-rwkv`](projects/30_non-transformer-architectures-mamba-rwkv) |
+| 31 | Diffusion and Non-Autoregressive Decoding — iterative unmasking; confidence-ranked commits; the speed-vs-coherence dial. | [`projects/31_diffusion-and-non-autoregressive-decoding`](projects/31_diffusion-and-non-autoregressive-decoding) |
 
 ### Modular Composition
 
 | #  | Project | Folder |
 |----|---------|--------|
-| 31 | Layer Freezing and Transfer — freeze ratios, CKA, training speed vs forgetting. | [`projects/31_layer-freezing-and-transfer`](projects/31_layer-freezing-and-transfer) |
-| 32 | Fusing Independently Trained Specialists — shared base, specialist heads, router. | [`projects/32_fusing-independently-trained-specialists`](projects/32_fusing-independently-trained-specialists) |
-| 33 | The Interface Specification — machine-readable contracts; loud vs silent failures. | [`projects/33_the-interface-specification`](projects/33_the-interface-specification) |
-| 34 | Incremental Assembly — order independence; what "modular" actually means. | [`projects/34_incremental-assembly`](projects/34_incremental-assembly) |
-| 35 | Your Architecture — final project; build one of your own. | [`projects/35_your-architecture`](projects/35_your-architecture) |
+| 32 | Layer Freezing and Transfer — freeze ratios, CKA, training speed vs forgetting. | [`projects/32_layer-freezing-and-transfer`](projects/32_layer-freezing-and-transfer) |
+| 33 | Fusing Independently Trained Specialists — shared base, specialist heads, router. | [`projects/33_fusing-independently-trained-specialists`](projects/33_fusing-independently-trained-specialists) |
+| 34 | The Interface Specification — machine-readable contracts; loud vs silent failures. | [`projects/34_the-interface-specification`](projects/34_the-interface-specification) |
+| 35 | Incremental Assembly — order independence; what "modular" actually means. | [`projects/35_incremental-assembly`](projects/35_incremental-assembly) |
+| 36 | Your Architecture — final project; build one of your own. | [`projects/36_your-architecture`](projects/36_your-architecture) |
 
 ---
 

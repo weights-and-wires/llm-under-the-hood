@@ -19,7 +19,7 @@ PROJECTS_DIR = REPO_ROOT / "projects"
 TOOLS_DIR = REPO_ROOT / "tools"
 SETUP_DIR = REPO_ROOT / "setup"
 
-EXPECTED_PROJECT_COUNT = 35
+EXPECTED_PROJECT_COUNT = 36
 
 
 def test_projects_dir_exists() -> None:
@@ -50,7 +50,7 @@ def test_every_project_has_readme() -> None:
     assert not missing, f"Projects missing README.md: {missing}"
 
 
-def test_project_numbers_are_contiguous_1_to_35() -> None:
+def test_project_numbers_are_contiguous_1_to_36() -> None:
     folders = sorted(p for p in PROJECTS_DIR.iterdir() if p.is_dir())
     numbers = sorted(int(p.name.split("_", 1)[0]) for p in folders)
     assert numbers == list(range(1, EXPECTED_PROJECT_COUNT + 1)), (
@@ -112,7 +112,8 @@ def test_pyproject_toml_present() -> None:
         (4, "attention-from-scratch"),
         (15, "grouped-query-attention"),
         (27, "quantization"),
-        (35, "your-architecture"),
+        (31, "diffusion-and-non-autoregressive-decoding"),
+        (36, "your-architecture"),
     ],
 )
 def test_specific_projects_present(project_number: int, expected_slug_substring: str) -> None:

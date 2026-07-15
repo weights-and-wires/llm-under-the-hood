@@ -94,6 +94,10 @@ python projects/17_production-serving-continuous-batching-and-pagedattention/bre
 
 _To be captured in PR 3. Will include loss curves, sample generations, and any benchmark results._
 
+## Hardware validation
+
+The 2026 update discusses fp8 KV-cache quantization and speculative decoding as two serving levers, and how they compose. Those claims were run end-to-end on an NVIDIA GB10 (DGX Spark) serving Qwen3-8B under vLLM — charts, raw benchmark JSON, and a reproduce script are in [`validation_fp8_kv_gb10/`](validation_fp8_kv_gb10). Headline: fp8 KV holds ~2.07× the token budget of bf16, and a causal n-gram drafter composes with it for ~1.9× throughput at 71% draft acceptance.
+
 ## Read in the book
 
 This project is Chapter 17 of *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Buy the book at <https://leanpub.com/under-the-hood>.
