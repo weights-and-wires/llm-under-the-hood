@@ -1,0 +1,28 @@
+{
+  "slug": "01_python-environment",
+  "filename": "01_python-environment.md",
+  "title": "1. Python environment",
+  "body": "# 1. Python environment\n\nThis book targets **Python 3.11 or 3.12**. Earlier versions will hit type-syntax problems; newer versions may have torch wheel availability issues.\n\n## The short version\n\n```bash\n# Check what you have\npython --version\n\n# Create an isolated env (any of these works; pick one)\npython -m venv .venv && source .venv/bin/activate     # macOS / Linux\npython -m venv .venv && .venv\\Scripts\\activate        # Windows PowerShell\n\n# OR with uv (fast, recommended if you don't already have a venv tool)\nuv venv && source .venv/bin/activate\n```\n\nThen proceed to [02_installing-dependencies.md](02_installing-dependencies.md).\n\n## If you don't have Python at all\n\n- **macOS:** `brew install python@3.12`\n- **Linux (Debian/Ubuntu):** `sudo apt install python3.12 python3.12-venv`\n- **Windows:** Download the installer from <https://www.python.org/downloads/> — check \"Add Python to PATH\" during install.\n\n## If you're using conda / mamba\n\n```bash\nconda create -n uth python=3.12\nconda activate uth\n```\n\nThat's it for environments. You don't need notebook tooling, jupyter, or anything else yet — this repo runs `.py` files directly.\n",
+  "sections": [
+    {
+      "heading": "__intro__",
+      "slug": "",
+      "body": "\nThis book targets **Python 3.11 or 3.12**. Earlier versions will hit type-syntax problems; newer versions may have torch wheel availability issues.\n"
+    },
+    {
+      "heading": "The short version",
+      "slug": "the-short-version",
+      "body": "\n```bash\npython --version\n\npython -m venv .venv && source .venv/bin/activate     # macOS / Linux\npython -m venv .venv && .venv\\Scripts\\activate        # Windows PowerShell\n\nuv venv && source .venv/bin/activate\n```\n\nThen proceed to [02_installing-dependencies.md](02_installing-dependencies.md).\n"
+    },
+    {
+      "heading": "If you don't have Python at all",
+      "slug": "if-you-dont-have-python-at-all",
+      "body": "\n- **macOS:** `brew install python@3.12`\n- **Linux (Debian/Ubuntu):** `sudo apt install python3.12 python3.12-venv`\n- **Windows:** Download the installer from <https://www.python.org/downloads/> — check \"Add Python to PATH\" during install.\n"
+    },
+    {
+      "heading": "If you're using conda / mamba",
+      "slug": "if-youre-using-conda-mamba",
+      "body": "\n```bash\nconda create -n uth python=3.12\nconda activate uth\n```\n\nThat's it for environments. You don't need notebook tooling, jupyter, or anything else yet — this repo runs `.py` files directly.\n"
+    }
+  ]
+}

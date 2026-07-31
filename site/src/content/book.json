@@ -1,0 +1,14 @@
+{
+  "title": "Under the Hood",
+  "subtitle": "Build Every Layer of a Large Language Model from Scratch",
+  "author": "Ramchand Kumaresan",
+  "leanpubUrl": "https://leanpub.com/under-the-hood",
+  "githubUrl": "https://github.com/mechramc/Under-the-hood",
+  "method": [
+    "Build it.",
+    "Break it.",
+    "Measure it."
+  ],
+  "projectCount": 36,
+  "partCount": 9
+}

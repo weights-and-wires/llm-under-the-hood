@@ -1,0 +1,234 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource/space-mono";
+
+/*
+  Under the Hood — dark minimal theme.
+  Single muted accent, hairline borders, generous whitespace, serif headings.
+  Defined with Tailwind v4 CSS-first @theme so tokens map to utilities
+  (e.g. bg-bg, text-fg, border-line, text-accent).
+*/
+@theme {
+  /* Surfaces — near-black, layered by 1-2 stops */
+  --color-bg: #0a0a0b;
+  --color-surface: #101012;
+  --color-surface-2: #161619;
+
+  /* Hairlines */
+  --color-line: #1f1f24;
+  --color-line-strong: #2a2a31;
+
+  /* Text */
+  --color-fg: #e7e7ea;
+  --color-muted: #8a8a93;
+  --color-faint: #5a5a62;
+
+  /* Single accent — soft periwinkle-blue, restrained */
+  --color-accent: #8aa4ff;
+  --color-accent-dim: #5566a8;
+
+  /* Typography */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: ui-serif, "Iowan Old Style", "Apple Garamond", "Baskerville",
+    "Times New Roman", serif;
+  --font-mono: "Space Mono", ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+
+  /* Prose measure for reading pane */
+  --prose-measure: 720px;
+}
+
+/* Base resets */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv05", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Headings lean into the book feel */
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Selection */
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+  color: #fff;
+}
+
+/* Scrollbar — quiet */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 999px;
+  border: 3px solid var(--color-bg);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Focus ring — accent, but soft */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Code blocks: Shiki adds its own inline color styles; we just frame them. */
+pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* Inline code in prose */
+:not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  color: var(--color-fg);
+}
+
+/* Reading pane prose defaults — used by the project pages */
+.prose {
+  max-width: var(--prose-measure);
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--color-fg);
+}
+.prose p,
+.prose ul,
+.prose ol {
+  margin: 1.1em 0;
+}
+.prose p + p {
+  margin-top: 1.3em;
+}
+.prose h2 {
+  font-size: 1.5rem;
+  margin: 2.2em 0 0.6em;
+  color: var(--color-fg);
+}
+.prose h3 {
+  font-size: 1.15rem;
+  margin: 1.8em 0 0.5em;
+  color: var(--color-fg);
+}
+.prose a {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+.prose a:hover {
+  border-bottom-color: var(--color-accent);
+}
+.prose strong {
+  color: #fff;
+  font-weight: 600;
+}
+.prose blockquote {
+  margin: 1.4em 0;
+  padding-left: 1.1em;
+  border-left: 2px solid var(--color-accent-dim);
+  color: var(--color-muted);
+  font-style: italic;
+}
+.prose ul,
+.prose ol {
+  padding-left: 1.3em;
+}
+.prose li + li {
+  margin-top: 0.4em;
+}
+.prose pre {
+  margin: 1.2em 0;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  overflow-x: auto;
+  padding: 1rem 1.1rem;
+  position: relative;
+}
+.prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+}
+.prose .copy-btn {
+  opacity: 0;
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  background: color-mix(in srgb, var(--color-surface-2) 88%, transparent);
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.prose pre:hover .copy-btn {
+  opacity: 1;
+}
+.prose .copy-btn:hover {
+  color: var(--color-fg);
+  border-color: var(--color-accent-dim);
+}
+.prose .copy-btn.copied {
+  opacity: 1;
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--color-line);
+  margin: 2.4em 0;
+}
+.prose img {
+  border-radius: 6px;
+  border: 1px solid var(--color-line);
+  margin: 1.6em 0;
+}
+/* Tables (project READMEs use them) */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.4em 0;
+  font-size: 0.9rem;
+}
+.prose th,
+.prose td {
+  text-align: left;
+  padding: 0.55em 0.8em;
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: top;
+}
+.prose th {
+  color: var(--color-muted);
+  font-weight: 500;
+  font-family: var(--font-sans);
+}

@@ -1,0 +1,416 @@
+[
+  {
+    "name": "Foundations",
+    "slug": "foundations",
+    "projects": [
+      {
+        "num": 1,
+        "folder": "01_the-learning-machine",
+        "title": "The Learning Machine",
+        "hook": "Build a scalar autograd engine yourself, train a tiny MLP on a 2D toy dataset, then deliberately break the gradient flow and watch learning stop cold.",
+        "summary": "scalar autograd, neurons, MLP, training loop.",
+        "slug": "01_the-learning-machine",
+        "hasBreakIt": true,
+        "hasOutputs": true
+      },
+      {
+        "num": 2,
+        "folder": "02_predicting-the-next-character",
+        "title": "Predicting the Next Character",
+        "hook": "The least mystical version of language modeling: a counting table vs. a tiny neural model with learned embeddings. Watch the neural model overfit a tiny corpus, then deliberately destroy its embeddings and see what fails.",
+        "summary": "bigram counts → learned embeddings → NLL.",
+        "slug": "02_predicting-the-next-character",
+        "hasBreakIt": true,
+        "hasOutputs": true
+      },
+      {
+        "num": 3,
+        "folder": "03_building-a-tokenizer",
+        "title": "Building a Tokenizer",
+        "hook": "Byte-Pair Encoding from scratch in ~80 lines. Train at multiple vocabulary sizes, visualize what gets merged, and watch the sweet spot emerge between \"everything is bytes\" and \"everything is rare fragments.\"",
+        "summary": "BPE from scratch; vocab size as a tunable knob.",
+        "slug": "03_building-a-tokenizer",
+        "hasBreakIt": true,
+        "hasOutputs": true
+      },
+      {
+        "num": 4,
+        "folder": "04_attention-from-scratch",
+        "title": "Attention from Scratch",
+        "hook": "Q/K/V projections, scaled dot products, causal masking, multi-head split — all written by hand with no `nn.MultiheadAttention` to paper over what's happening. Then watch the 1/√d_head scaling factor stop being optional.",
+        "summary": "Q/K/V, scaled dot-product, masking, multi-head.",
+        "slug": "04_attention-from-scratch",
+        "hasBreakIt": true,
+        "hasOutputs": true
+      }
+    ]
+  },
+  {
+    "name": "Building a GPT",
+    "slug": "building-a-gpt",
+    "projects": [
+      {
+        "num": 5,
+        "folder": "05_your-gpt-from-a-blank-file",
+        "title": "Your GPT from a Blank File",
+        "hook": "The smallest complete GPT: tokenizer → batches → transformer blocks → training loop → generation, in one file. Train it on Shakespeare-shaped text in 3 seconds on CPU.",
+        "summary": "the smallest complete system.",
+        "slug": "05_your-gpt-from-a-blank-file",
+        "hasBreakIt": true,
+        "hasOutputs": true
+      },
+      {
+        "num": 6,
+        "folder": "06_from-prototype-to-nanogpt",
+        "title": "From Prototype to nanoGPT",
+        "hook": "Two surgical refinements that turn the Project 5 prototype into a production-shape model: parameter groups for weight decay, and scaled residual initialization. Train both side-by-side and watch val loss drop by 0.7.",
+        "summary": "side-by-side with the reference.",
+        "slug": "06_from-prototype-to-nanogpt",
+        "hasBreakIt": true,
+        "hasOutputs": true
+      },
+      {
+        "num": 7,
+        "folder": "07_the-details-that-matter",
+        "title": "The Details That Matter",
+        "hook": "RMSNorm instead of LayerNorm. SwiGLU instead of GELU. The two architectural swaps that appear in Llama, Mistral, and most modern open-weight LLMs. Train all four combinations side-by-side and look at the deltas.",
+        "summary": "norms, activations, positional encodings.",
+        "slug": "07_the-details-that-matter",
+        "hasBreakIt": true,
+        "hasOutputs": true
+      },
+      {
+        "num": 8,
+        "folder": "08_flash-attention-and-tiled-kernels",
+        "title": "Flash Attention and Tiled Kernels",
+        "hook": "The actual idea behind FlashAttention is not a new algorithm. It's a different schedule for the same algorithm — one that never materializes the full (T, T) score matrix in memory. This project demonstrates the schedule on CPU with explicit memory accounting.",
+        "summary": "memory-efficient attention.",
+        "slug": "08_flash-attention-and-tiled-kernels",
+        "hasBreakIt": true,
+        "hasOutputs": true
+      }
+    ]
+  },
+  {
+    "name": "Training at Scale",
+    "slug": "training-at-scale",
+    "projects": [
+      {
+        "num": 9,
+        "folder": "09_pretraining-on-the-real-web",
+        "title": "Pretraining on the Real Web",
+        "hook": "FineWeb-EDU, mixed precision, val-bpb.",
+        "summary": "FineWeb-EDU, mixed precision, val-bpb.",
+        "slug": "09_pretraining-on-the-real-web",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 10,
+        "folder": "10_data-curation-and-contamination",
+        "title": "Data Curation and Contamination",
+        "hook": "what makes good pretraining data.",
+        "summary": "what makes good pretraining data.",
+        "slug": "10_data-curation-and-contamination",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 11,
+        "folder": "11_training-debugging-spikes-nans-and-profiling",
+        "title": "Training Debugging: Spikes, NaNs, and Profiling.",
+        "hook": "",
+        "summary": "",
+        "slug": "11_training-debugging-spikes-nans-and-profiling",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      },
+      {
+        "num": 12,
+        "folder": "12_distributed-training-fsdp-and-zero-single-box-proxy",
+        "title": "Distributed Training: FSDP and ZeRO (single-box proxy).",
+        "hook": "",
+        "summary": "",
+        "slug": "12_distributed-training-fsdp-and-zero-single-box-proxy",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      }
+    ]
+  },
+  {
+    "name": "Inference and Serving",
+    "slug": "inference-and-serving",
+    "projects": [
+      {
+        "num": 13,
+        "folder": "13_fast-inference-the-kv-cache",
+        "title": "Fast Inference: The KV Cache.",
+        "hook": "",
+        "summary": "",
+        "slug": "13_fast-inference-the-kv-cache",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      },
+      {
+        "num": 14,
+        "folder": "14_speculative-decoding",
+        "title": "Speculative Decoding.",
+        "hook": "",
+        "summary": "",
+        "slug": "14_speculative-decoding",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      },
+      {
+        "num": 15,
+        "folder": "15_grouped-query-attention",
+        "title": "Grouped Query Attention.",
+        "hook": "",
+        "summary": "",
+        "slug": "15_grouped-query-attention",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 16,
+        "folder": "16_long-context-extension-rope-yarn-ntk-aware",
+        "title": "Long-Context Extension (RoPE, YaRN, NTK-Aware).",
+        "hook": "",
+        "summary": "",
+        "slug": "16_long-context-extension-rope-yarn-ntk-aware",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      },
+      {
+        "num": 17,
+        "folder": "17_production-serving-continuous-batching-and-pagedattention",
+        "title": "Production Serving: Continuous Batching and PagedAttention.",
+        "hook": "",
+        "summary": "",
+        "slug": "17_production-serving-continuous-batching-and-pagedattention",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      }
+    ]
+  },
+  {
+    "name": "Scaling and Experimentation",
+    "slug": "scaling-and-experimentation",
+    "projects": [
+      {
+        "num": 18,
+        "folder": "18_mixture-of-experts",
+        "title": "Mixture of Experts",
+        "hook": "router, top-k, expert utilization, load balancing.",
+        "summary": "router, top-k, expert utilization, load balancing.",
+        "slug": "18_mixture-of-experts",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      },
+      {
+        "num": 19,
+        "folder": "19_scaling-laws",
+        "title": "Scaling Laws",
+        "hook": "depth sweeps, compute-optimal training.",
+        "summary": "depth sweeps, compute-optimal training.",
+        "slug": "19_scaling-laws",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 20,
+        "folder": "20_autonomous-experimentation",
+        "title": "Autonomous Experimentation",
+        "hook": "point an agent at `program.md`.",
+        "summary": "point an agent at `program.md`.",
+        "slug": "20_autonomous-experimentation",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      }
+    ]
+  },
+  {
+    "name": "Aligning and Evaluating",
+    "slug": "aligning-and-evaluating",
+    "projects": [
+      {
+        "num": 21,
+        "folder": "21_fine-tuning-and-instruction-tuning",
+        "title": "Fine-Tuning and Instruction Tuning",
+        "hook": "SFT, conversational tuning, LoRA.",
+        "summary": "SFT, conversational tuning, LoRA.",
+        "slug": "21_fine-tuning-and-instruction-tuning",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 22,
+        "folder": "22_evaluation-methodology",
+        "title": "Evaluation Methodology.",
+        "hook": "",
+        "summary": "",
+        "slug": "22_evaluation-methodology",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 23,
+        "folder": "23_reward-models-and-rlhf",
+        "title": "Reward Models and RLHF",
+        "hook": "reward dataset, RM training, GRPO, KL leash.",
+        "summary": "reward dataset, RM training, GRPO, KL leash.",
+        "slug": "23_reward-models-and-rlhf",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 24,
+        "folder": "24_dpo-and-preference-optimization",
+        "title": "DPO and Preference Optimization.",
+        "hook": "",
+        "summary": "",
+        "slug": "24_dpo-and-preference-optimization",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      }
+    ]
+  },
+  {
+    "name": "Reasoning, Tools, and Retrieval",
+    "slug": "reasoning-tools-and-retrieval",
+    "projects": [
+      {
+        "num": 25,
+        "folder": "25_test-time-reasoning-cot-self-consistency-best-of-n",
+        "title": "Test-Time Reasoning (CoT, Self-Consistency, Best-of-N).",
+        "hook": "",
+        "summary": "",
+        "slug": "25_test-time-reasoning-cot-self-consistency-best-of-n",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      },
+      {
+        "num": 26,
+        "folder": "26_tool-use-and-function-calling",
+        "title": "Tool Use and Function Calling.",
+        "hook": "",
+        "summary": "",
+        "slug": "26_tool-use-and-function-calling",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      },
+      {
+        "num": 27,
+        "folder": "27_quantization-and-deployment",
+        "title": "Quantization and Deployment",
+        "hook": "FP32 → INT8 → INT4 → GGUF.",
+        "summary": "FP32 → INT8 → INT4 → GGUF.",
+        "slug": "27_quantization-and-deployment",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      },
+      {
+        "num": 28,
+        "folder": "28_retrieval-augmented-generation",
+        "title": "Retrieval-Augmented Generation.",
+        "hook": "",
+        "summary": "",
+        "slug": "28_retrieval-augmented-generation",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      }
+    ]
+  },
+  {
+    "name": "Beyond the Transformer",
+    "slug": "beyond-the-transformer",
+    "projects": [
+      {
+        "num": 29,
+        "folder": "29_multimodal-a-tiny-vision-language-model",
+        "title": "Multimodal: A Tiny Vision-Language Model.",
+        "hook": "",
+        "summary": "",
+        "slug": "29_multimodal-a-tiny-vision-language-model",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      },
+      {
+        "num": 30,
+        "folder": "30_non-transformer-architectures-mamba-rwkv",
+        "title": "Non-Transformer Architectures (Mamba, RWKV).",
+        "hook": "",
+        "summary": "",
+        "slug": "30_non-transformer-architectures-mamba-rwkv",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 31,
+        "folder": "31_diffusion-and-non-autoregressive-decoding",
+        "title": "Diffusion and Non-Autoregressive Decoding",
+        "hook": "iterative unmasking; confidence-ranked commits; the speed-vs-coherence dial.",
+        "summary": "iterative unmasking; confidence-ranked commits; the speed-vs-coherence dial.",
+        "slug": "31_diffusion-and-non-autoregressive-decoding",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      }
+    ]
+  },
+  {
+    "name": "Modular Composition",
+    "slug": "modular-composition",
+    "projects": [
+      {
+        "num": 32,
+        "folder": "32_layer-freezing-and-transfer",
+        "title": "Layer Freezing and Transfer",
+        "hook": "freeze ratios, CKA, training speed vs forgetting.",
+        "summary": "freeze ratios, CKA, training speed vs forgetting.",
+        "slug": "32_layer-freezing-and-transfer",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 33,
+        "folder": "33_fusing-independently-trained-specialists",
+        "title": "Fusing Independently Trained Specialists",
+        "hook": "shared base, specialist heads, router.",
+        "summary": "shared base, specialist heads, router.",
+        "slug": "33_fusing-independently-trained-specialists",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 34,
+        "folder": "34_the-interface-specification",
+        "title": "The Interface Specification",
+        "hook": "machine-readable contracts; loud vs silent failures.",
+        "summary": "machine-readable contracts; loud vs silent failures.",
+        "slug": "34_the-interface-specification",
+        "hasBreakIt": true,
+        "hasOutputs": false
+      },
+      {
+        "num": 35,
+        "folder": "35_incremental-assembly",
+        "title": "Incremental Assembly",
+        "hook": "order independence; what \"modular\" actually means.",
+        "summary": "order independence; what \"modular\" actually means.",
+        "slug": "35_incremental-assembly",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      },
+      {
+        "num": 36,
+        "folder": "36_your-architecture",
+        "title": "Your Architecture",
+        "hook": "final project; build one of your own.",
+        "summary": "final project; build one of your own.",
+        "slug": "36_your-architecture",
+        "hasBreakIt": false,
+        "hasOutputs": false
+      }
+    ]
+  }
+]

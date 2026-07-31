@@ -1,0 +1,73 @@
+---
+import book from "../content/book.json";
+import Search from "./Search.astro";
+---
+
+<header class="topbar">
+  <button class="menu-toggle" data-menu-toggle aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+  <a href="/" class="topbar-title">{book.title}</a>
+  <div class="topbar-spacer"></div>
+  <Search />
+  <a href={book.leanpubUrl} target="_blank" rel="noopener" class="topbar-book">Book ↗</a>
+</header>
+
+<style>
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 52px;
+    padding: 0 1.5rem;
+    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--color-line);
+  }
+  .topbar-title {
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    color: var(--color-muted);
+    text-decoration: none;
+  }
+  .topbar-title:hover {
+    color: var(--color-fg);
+  }
+  .topbar-spacer {
+    flex: 1;
+  }
+  .topbar-book {
+    font-size: 0.78rem;
+    color: var(--color-accent);
+    text-decoration: none;
+    font-family: var(--font-mono);
+  }
+  .topbar-book:hover {
+    text-decoration: underline;
+  }
+
+  .menu-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+  }
+  .menu-toggle span {
+    display: block;
+    width: 18px;
+    height: 1.5px;
+    background: var(--color-fg);
+  }
+
+  @media (max-width: 900px) {
+    .menu-toggle {
+      display: flex;
+    }
+  }
+</style>

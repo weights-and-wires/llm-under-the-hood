@@ -1,0 +1,130 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import book from "../content/book.json";
+const parts = (await import("../content/curriculum.json")).default;
+const totalProjects = parts.reduce((n, p) => n + p.projects.length, 0);
+---
+
+<BaseLayout active="/about" title="About">
+  <header class="page-head">
+    <p class="eyebrow">About</p>
+    <h1 class="page-title">{book.title}</h1>
+    <p class="page-sub">{book.subtitle}</p>
+    <p class="page-author">By {book.author}</p>
+  </header>
+
+  <section class="prose about-prose">
+    <blockquote>
+      <em>Build it. Break it. Measure it.</em> — not a tagline. It is the entire
+      epistemology of the book.
+    </blockquote>
+
+    <p>
+      This is the runnable code companion for the book <em>{book.title}</em>. Each of the
+      {totalProjects} projects has its own folder, with a runnable <code>build.py</code>,
+      a <code>break_it.py</code> experiment, per-step reference files, and captured outputs.
+    </p>
+
+    <p>
+      You can do the entire book by reading the book and typing the code yourself — that's
+      the recommended path. But when you get stuck, or want to compare your code to a
+      reference, this site is where you look.
+    </p>
+
+    <h2>Who this is for</h2>
+    <ul>
+      <li><strong>Engineers</strong> who can ship software but feel like LLM internals are wizardry happening behind an API.</li>
+      <li><strong>Researchers</strong> who want a working mental model of the full stack before reading their hundredth attention paper.</li>
+      <li><strong>Students</strong> who learned PyTorch from notebooks and want to know what a training run actually does.</li>
+      <li><strong>Practitioners</strong> tuning, deploying, or fine-tuning models who keep hitting failure modes they cannot explain.</li>
+    </ul>
+
+    <h2>Philosophy</h2>
+    <ul>
+      <li><strong>Build it</strong> because reading is not understanding. Understanding is being able to reproduce.</li>
+      <li><strong>Break it</strong> because a working system tells you what it does. A broken system tells you why it has to be that way.</li>
+      <li><strong>Measure it</strong> because intuition without numbers is the most expensive failure mode in machine learning.</li>
+    </ul>
+
+    <p>
+      Modern LLMs are not magic. They are a stack of carefully-tuned engineering decisions,
+      each one earned by a specific failure that someone, somewhere, had to debug at 2am.
+      This book makes you the person who debugged it.
+    </p>
+
+    <h2>The code vs. the book</h2>
+    <p>
+      The code in this repository is released under the <a href={book.githubUrl}>MIT License</a>.
+      The book text (PDF / EPUB, distributed via Leanpub) is copyrighted separately.
+    </p>
+
+    <h2>Citation</h2>
+    <pre class="bibtex"><code set:html={`@book{kumaresan2026underthehood,
+  author    = {Kumaresan, Ramchand},
+  title     = {Under the Hood: Build Every Layer of a Large Language Model from Scratch},
+  year      = {2026},
+  publisher = {Leanpub},
+  url       = {https://leanpub.com/under-the-hood}
+}`}></code></pre>
+  </section>
+
+  <div class="about-cta">
+    <a href={book.leanpubUrl} target="_blank" rel="noopener" class="btn btn-primary">Buy the book →</a>
+    <a href="/projects/1" class="btn btn-ghost">Start Project 01</a>
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head {
+    margin-bottom: 2.5rem;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--color-faint);
+    margin-bottom: 0.8rem;
+  }
+  .page-title {
+    font-family: var(--font-serif);
+    font-size: 2.6rem;
+    margin: 0 0 0.4rem;
+    letter-spacing: -0.02em;
+  }
+  .page-sub {
+    color: var(--color-muted);
+    font-size: 1.1rem;
+    margin: 0 0 0.3rem;
+  }
+  .page-author {
+    color: var(--color-faint);
+    font-size: 0.9rem;
+  }
+  .about-prose {
+    max-width: 680px;
+  }
+  .about-cta {
+    display: flex;
+    gap: 0.8rem;
+    margin-top: 2.5rem;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-block;
+    padding: 0.65rem 1.2rem;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .btn-primary {
+    background: var(--color-accent);
+    color: #0a0a0b;
+  }
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--color-accent) 85%, white);
+  }
+  .btn-ghost {
+    border: 1px solid var(--color-line-strong);
+    color: var(--color-fg);
+  }
+</style>

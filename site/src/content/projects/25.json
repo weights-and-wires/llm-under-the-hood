@@ -1,0 +1,108 @@
+{
+  "num": 25,
+  "folder": "25_test-time-reasoning-cot-self-consistency-best-of-n",
+  "part": {
+    "name": "Reasoning, Tools, and Retrieval",
+    "slug": "reasoning-tools-and-retrieval"
+  },
+  "title": "Test-Time Reasoning (CoT, Self-Consistency, Best-of-N).",
+  "summary": "",
+  "readmeTitle": "Project 25: Test-Time Reasoning (CoT, Self-Consistency, Best-of-N)",
+  "hook": "",
+  "sections": [
+    {
+      "heading": "__intro__",
+      "slug": "",
+      "body": ""
+    },
+    {
+      "heading": "Hook",
+      "slug": "hook",
+      "body": "\nYour fine-tuned model from **Project 21: Fine-Tuning and Instruction Tuning** answers \"what is 2 + 2?\" without hesitation. Ask it a four-step grade-school word problem and it confidently produces the wrong number. Nothing about the model has changed. The same weights that nailed the easy question whiffed on the harder one. The math the model needs is sitting inside those weights. It just is not getting deployed. What compute can you spend at inference time, after training is over and the weights are frozen, to fix this?\n\nThe first time this happened to me on an ACAR-style routing experiment, I assumed the weights were broken. They were not. The model was being asked to do four steps of arithmetic with no place to write down the intermediates, and it was guessing the answer in one forward pass. That was the lesson. The chapter is about the cheapest fixes available.\n"
+    },
+    {
+      "heading": "The Concept",
+      "slug": "the-concept",
+      "body": "\nThe model has the capability. It does not have the deliberation. A student who knows how to add can still mess up a long arithmetic problem if they try to do every step in their head and only write down the final number. The same student, given a piece of scratch paper and told \"show your work,\" makes fewer mistakes. The information needed to be correct was always in their head. The scratch paper changed what they could keep track of.\n\nA language model has the same problem. When it generates a single answer token in response to a hard problem, it is doing every intermediate calculation in one forward pass, with no way to write anything down. **Chain-of-thought**, often shortened to **CoT**, is the scratch paper. You prompt the model with something like \"Let's think step by step,\" and the model produces a sequence of intermediate reasoning tokens before giving its final answer. The final answer is now generated with all those intermediate tokens already in its context, so it has a much easier job.\n\nThat is one move. There are three more, and each one buys accuracy by spending more inference compute.\n\n**Self-consistency** is the second move. Generate not one chain of reasoning, but eight. Sample them at a temperature high enough that the chains genuinely differ — temperature 0.7 is the usual setting. Read off the final answer from each chain. Then take a **majority vote**: whichever final answer appears most often across the eight chains is the answer you keep. The intuition is that there are many wrong ways to reason about a hard problem, but most of the right ways tend to converge on the same number. If five out of eight chains say \"47\" and the other three say three different wrong things, \"47\" is your best guess.\n\n**Best-of-N**, written **BoN**, is the third move. Sample N candidate answers — full chains plus final answers — and pick the best one using a **verifier**. The verifier is a separate model trained to score answers, often called a **reward model** or **outcome reward model** (**ORM**) when it scores final outcomes. An ORM takes a question and a candidate solution and produces a number: higher is better. You take the candidate with the highest ORM score and return that one. Majority vote uses agreement to pick. BoN uses an external judge.\n\n**Process reward models** (**PRMs**) are the fourth move. An ORM scores the final answer. A PRM scores each individual step in the reasoning chain: was step one correct, was step two correct, and so on. With a PRM you can do something more surgical than picking among finished candidates. At each reasoning step, you sample K continuations, score each one with the PRM, keep the best step, and continue. The search is now step-level rather than candidate-level. It is more compute, but the verifier can reject bad reasoning before it derails the whole chain.\n\nPRMs are also where my opinion on this whole space gets sharpest. I think PRM training is one of the most fragile pipelines in the test-time playbook, and the literature understates how easy it is to ship a PRM that grades the wrong feature. The BREAK IT later in the chapter exists because I have seen this failure mode in the wild, on fusion candidates where a verifier was rewarding chain length and we mistook it for rewarding correctness for almost a full day.\n\nA useful analogy to hold all four together: a student doing a math problem. The student who shows their work catches their own arithmetic mistakes; that is CoT. Three students working in parallel and majority-voting on the final answer do better than any one of them; that is self-consistency. A teacher who reads each student's final answer and picks the best one does better still; that is BoN with an ORM. A teacher who reads each step as the student writes it and tells them when they have gone wrong does the best of all; that is a PRM doing step-level search.\n\nThere is a search-tree version of the last move that is worth naming separately. **MCTS** stands for **Monte Carlo Tree Search**, and it generalizes step-level BoN into a real tree search. From the current partial reasoning, expand several candidate next-steps, score them with the PRM, recurse into the most promising one, occasionally back up and try a different branch when scores stop improving. The math is more involved, but the structure is the same: PRM-guided search through the space of possible reasoning chains. A **rollout** in this context is one full path from the current node down to a final answer. MCTS does many rollouts and uses their outcomes to decide which branches to develop further.\n\nAll five methods (direct answering, CoT, self-consistency, BoN, step-level BoN with a PRM, and MCTS) trade inference compute for accuracy. Direct answering is the cheapest and least accurate. MCTS is the most expensive and, when the PRM is good, the most accurate. There is no free improvement here. You are paying for accuracy in GPU-seconds at inference time, the same way you paid for it in GPU-hours at training time.\n\nI think of this as the budget version of adaptive complexity routing. Multi-model routing work I have done across single, two, and three-model ensembles was solving the same problem at a higher level: when does it pay to spend more compute on a question? Test-time reasoning is the same question one rung down, inside a single model. The answer is also the same: sometimes a lot, sometimes nothing, and you cannot tell ahead of time without measuring.\n"
+    },
+    {
+      "heading": "Why It Matters",
+      "slug": "why-it-matters",
+      "body": "\nWithout test-time reasoning, your model is leaving capability on the table. The training run already happened. The weights already encode whatever they encode. You can either ask the model to one-shot every hard problem and live with the failure rate, or you can spend a little more compute at inference and recover accuracy you already paid for during training.\n\nThe numbers in the literature are large enough to take seriously. On GSM8K, a grade-school math benchmark, naive prompting of a mid-sized model gets you maybe 30 percent accuracy. CoT prompting on the same model jumps to 50 percent or higher with no weight changes. Self-consistency on top of CoT, with eight samples, pushes that another five to ten points. BoN with a trained verifier can push it again. The o1 family of models from OpenAI, and the public discussion around them, leans heavily on this trick. The headline \"reasoning\" capability is in large part a story about spending more compute per query at inference time, using methods that are direct descendants of the ones in this chapter.\n\nThere is a second reason this chapter sits where it does. The previous chapters in this book taught you to spend training compute carefully. **Project 23: Reward Models and RLHF** taught you to train a reward model on preference data. **Project 24: DPO and Preference Optimization** taught you a cheaper alternative that bakes preferences into the policy directly. Test-time reasoning re-opens the question those chapters seemed to close. Maybe you do not need to bake every behavior into the weights. Maybe some behaviors are cheaper to get by spending compute at inference time, with a smaller policy and a smaller reward model. That tradeoff is one of the live research questions of the period this book is being written in.\n\nA third reason, less direct but worth saying. Test-time methods make capability cheaper to study. You do not need to retrain anything to see whether the model \"knows\" how to do a task. Crank up the inference compute, watch what happens to accuracy, and you have a much clearer answer than any single-shot eval. **Project 22: Evaluation Methodology** taught you to be careful with benchmarks; test-time reasoning is one of the reasons that care matters.\n"
+    },
+    {
+      "heading": "How to run this project",
+      "slug": "how-to-run-this-project",
+      "body": "\n```bash\npython projects/25_test-time-reasoning-cot-self-consistency-best-of-n/build.py --tiny\n\npython projects/25_test-time-reasoning-cot-self-consistency-best-of-n/build.py --full\n\npython projects/25_test-time-reasoning-cot-self-consistency-best-of-n/break_it.py\n```\n"
+    },
+    {
+      "heading": "Outputs",
+      "slug": "outputs",
+      "body": "\n_To be captured in PR 3. Will include loss curves, sample generations, and any benchmark results._\n"
+    },
+    {
+      "heading": "Read in the book",
+      "slug": "read-in-the-book",
+      "body": "\nThis project is Chapter 25 of *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Buy the book at <https://leanpub.com/under-the-hood>.\n"
+    }
+  ],
+  "files": {
+    "build": {
+      "name": "build.py",
+      "content": "\"\"\"\nProject 25: Test-Time Reasoning (CoT, Self-Consistency, Best-of-N)\n\nCanonical runnable build for this project. Generated by tools/extract_code.py\nfrom the book's chapter markdown — re-run that tool to regenerate.\n\"\"\"\n\n# === Step 1: Direct prompting and CoT prompting on GSM8K ===\n\ndef run_one(prompt, max_new_tokens=256, temperature=0.0):\n    out = model.generate(prompt, max_new_tokens=max_new_tokens,\n                         temperature=temperature, do_sample=temperature > 0)\n    return out\n\ndef extract_answer(text):\n    nums = re.findall(r\"-?\\d+\\.?\\d*\", text.replace(\",\", \"\"))\n    return float(nums[-1]) if nums else None\n\n# === Step 2: Self-consistency ===\n\ndef self_consistency(question, n=8, temperature=0.7):\n    answers = []\n    for _ in range(n):\n        text = run_one(cot_prompt(question), temperature=temperature)\n        ans = extract_answer(text)\n        if ans is not None:\n            answers.append(ans)\n    if not answers:\n        return None\n    counts = Counter(answers)\n    return counts.most_common(1)[0][0]\n\n# === Step 3: Train a tiny outcome reward model ===\n\nclass ORM(nn.Module):\n    def __init__(self, base_model):\n        super().__init__()\n        self.base = base_model\n        self.head = nn.Linear(base_model.hidden_size, 1)\n\n    def forward(self, input_ids, attention_mask):\n        h = self.base(input_ids, attention_mask=attention_mask).last_hidden_state\n        last = h[torch.arange(h.size(0)), attention_mask.sum(dim=1) - 1]\n        return self.head(last).squeeze(-1)\n\n# === Step 4: Best-of-N with the ORM ===\n\ndef bon(question, n=8, temperature=0.7):\n    candidates = []\n    for _ in range(n):\n        text = run_one(cot_prompt(question), temperature=temperature)\n        score = orm.score(question, text)\n        candidates.append((score, text))\n    candidates.sort(key=lambda x: -x[0])\n    best = candidates[0][1]\n    return extract_answer(best)\n\n# === Step 5: Train a tiny PRM ===\n\ndef rollout_label(question, prefix, m=8):\n    correct = 0\n    for _ in range(m):\n        continuation = run_one(prefix, temperature=0.7)\n        ans = extract_answer(prefix + continuation)\n        if ans == ground_truth[question]:\n            correct += 1\n    return correct / m\n\n# === Step 6: Step-level Best-of-N with the PRM ===\n\ndef step_level_bon(question, k=4, max_steps=12):\n    chain = \"\"\n    for _ in range(max_steps):\n        candidates = []\n        for _ in range(k):\n            step = sample_step(question, chain, temperature=0.7)\n            score = prm.score(question, chain + step)\n            candidates.append((score, step))\n        candidates.sort(key=lambda x: -x[0])\n        best_step = candidates[0][1]\n        chain += best_step\n        if has_final_answer(chain):\n            break\n    return extract_answer(chain)\n\n# === Step 7: A tiny MCTS over reasoning steps ===\n\ndef mcts(question, n_iter=32, k_expand=4):\n    root = Node(prompt=cot_prompt(question))\n    for _ in range(n_iter):\n        node = select(root)\n        children = expand(node, k=k_expand)\n        for child in children:\n            rollout_value = rollout_and_grade(child)\n            backup(child, rollout_value)\n    return best_leaf_answer(root)\n"
+    },
+    "breakIt": {
+      "name": "break_it.py",
+      "content": "\"\"\"\nProject 25: BREAK IT experiment.\n\nDeliberately sabotages one mechanism from build.py to show what happens\nwhen it's removed. Compare outputs to the working version.\n\"\"\"\n\ndef truncate_chain(chain):\n    steps = chain.split(\"\\n\")\n    keep = max(1, len(steps) // 2)\n    return \"\\n\".join(steps[:keep])\n\nbroken_data = [(q, truncate_chain(c), rollout_label(q, truncate_chain(c)))\n               for q, c, _ in original_data]\n"
+    },
+    "steps": [
+      {
+        "name": "step_01_direct-prompting-and-cot-prompting-on-gsm8k.py",
+        "title": "Direct Prompting And Cot Prompting On Gsm8k",
+        "n": 1,
+        "content": "\"\"\"\nProject 25: Step 1 — Direct prompting and CoT prompting on GSM8K\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\ndef run_one(prompt, max_new_tokens=256, temperature=0.0):\n    out = model.generate(prompt, max_new_tokens=max_new_tokens,\n                         temperature=temperature, do_sample=temperature > 0)\n    return out\n\ndef extract_answer(text):\n    nums = re.findall(r\"-?\\d+\\.?\\d*\", text.replace(\",\", \"\"))\n    return float(nums[-1]) if nums else None\n"
+      },
+      {
+        "name": "step_02_self-consistency.py",
+        "title": "Self Consistency",
+        "n": 2,
+        "content": "\"\"\"\nProject 25: Step 2 — Self-consistency\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\ndef self_consistency(question, n=8, temperature=0.7):\n    answers = []\n    for _ in range(n):\n        text = run_one(cot_prompt(question), temperature=temperature)\n        ans = extract_answer(text)\n        if ans is not None:\n            answers.append(ans)\n    if not answers:\n        return None\n    counts = Counter(answers)\n    return counts.most_common(1)[0][0]\n"
+      },
+      {
+        "name": "step_03_train-a-tiny-outcome-reward-model.py",
+        "title": "Train A Tiny Outcome Reward Model",
+        "n": 3,
+        "content": "\"\"\"\nProject 25: Step 3 — Train a tiny outcome reward model\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nclass ORM(nn.Module):\n    def __init__(self, base_model):\n        super().__init__()\n        self.base = base_model\n        self.head = nn.Linear(base_model.hidden_size, 1)\n\n    def forward(self, input_ids, attention_mask):\n        h = self.base(input_ids, attention_mask=attention_mask).last_hidden_state\n        last = h[torch.arange(h.size(0)), attention_mask.sum(dim=1) - 1]\n        return self.head(last).squeeze(-1)\n"
+      },
+      {
+        "name": "step_04_best-of-n-with-the-orm.py",
+        "title": "Best Of N With The Orm",
+        "n": 4,
+        "content": "\"\"\"\nProject 25: Step 4 — Best-of-N with the ORM\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\ndef bon(question, n=8, temperature=0.7):\n    candidates = []\n    for _ in range(n):\n        text = run_one(cot_prompt(question), temperature=temperature)\n        score = orm.score(question, text)\n        candidates.append((score, text))\n    candidates.sort(key=lambda x: -x[0])\n    best = candidates[0][1]\n    return extract_answer(best)\n"
+      },
+      {
+        "name": "step_05_train-a-tiny-prm.py",
+        "title": "Train A Tiny Prm",
+        "n": 5,
+        "content": "\"\"\"\nProject 25: Step 5 — Train a tiny PRM\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\ndef rollout_label(question, prefix, m=8):\n    correct = 0\n    for _ in range(m):\n        continuation = run_one(prefix, temperature=0.7)\n        ans = extract_answer(prefix + continuation)\n        if ans == ground_truth[question]:\n            correct += 1\n    return correct / m\n"
+      },
+      {
+        "name": "step_06_step-level-best-of-n-with-the-prm.py",
+        "title": "Step Level Best Of N With The Prm",
+        "n": 6,
+        "content": "\"\"\"\nProject 25: Step 6 — Step-level Best-of-N with the PRM\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\ndef step_level_bon(question, k=4, max_steps=12):\n    chain = \"\"\n    for _ in range(max_steps):\n        candidates = []\n        for _ in range(k):\n            step = sample_step(question, chain, temperature=0.7)\n            score = prm.score(question, chain + step)\n            candidates.append((score, step))\n        candidates.sort(key=lambda x: -x[0])\n        best_step = candidates[0][1]\n        chain += best_step\n        if has_final_answer(chain):\n            break\n    return extract_answer(chain)\n"
+      },
+      {
+        "name": "step_07_a-tiny-mcts-over-reasoning-steps.py",
+        "title": "A Tiny Mcts Over Reasoning Steps",
+        "n": 7,
+        "content": "\"\"\"\nProject 25: Step 7 — A tiny MCTS over reasoning steps\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\ndef mcts(question, n_iter=32, k_expand=4):\n    root = Node(prompt=cot_prompt(question))\n    for _ in range(n_iter):\n        node = select(root)\n        children = expand(node, k=k_expand)\n        for child in children:\n            rollout_value = rollout_and_grade(child)\n            backup(child, rollout_value)\n    return best_leaf_answer(root)\n"
+      }
+    ]
+  },
+  "outputs": [],
+  "tests": [],
+  "hasBreakIt": true,
+  "hasOutputs": false,
+  "hasTests": false
+}

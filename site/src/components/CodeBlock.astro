@@ -1,0 +1,101 @@
+---
+interface Props {
+  code: string;
+  lang?: string;
+  filename?: string;
+}
+const { code, lang = "python", filename } = Astro.props;
+---
+
+<figure class="codeblock">
+  {filename && (
+    <div class="codeblock-head">
+      <span class="codeblock-name">{filename}</span>
+      <button class="copy-btn" data-copy={code} aria-label="Copy code">Copy</button>
+    </div>
+  )}
+  {!filename && (
+    <button class="copy-btn copy-btn--bare" data-copy={code} aria-label="Copy code">Copy</button>
+  )}
+  <pre class:list={["astro-code", `language-${lang}`]}><code set:html={code}></code></pre>
+</figure>
+
+<style>
+  .codeblock {
+    margin: 1.4em 0;
+    position: relative;
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    background: var(--color-surface);
+    overflow: hidden;
+  }
+  .codeblock :global(pre.astro-code) {
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    background: transparent !important;
+  }
+  .codeblock-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.9rem;
+    border-bottom: 1px solid var(--color-line);
+    background: var(--color-surface-2);
+  }
+  .codeblock-name {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    color: var(--color-muted);
+  }
+  .copy-btn {
+    background: transparent;
+    border: 1px solid var(--color-line-strong);
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .copy-btn:hover {
+    color: var(--color-fg);
+    border-color: var(--color-accent-dim);
+  }
+  .copy-btn.copied {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+  .copy-btn--bare {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    z-index: 2;
+  }
+</style>
+
+<script>
+  // NOTE: code arrives with shiki highlighting only when rendered via Astro's
+  // built-in markdown. For raw strings (project source files) we use Shiki
+  // directly at build time inside the .md collection. Here we only handle copy.
+  window.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[data-copy]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const text = btn.getAttribute("data-copy") || "";
+        try {
+          await navigator.clipboard.writeText(text);
+          const el = btn as HTMLElement;
+          const prev = el.textContent;
+          el.textContent = "Copied";
+          el.classList.add("copied");
+          setTimeout(() => {
+            el.textContent = prev;
+            el.classList.remove("copied");
+          }, 1400);
+        } catch {
+          /* clipboard blocked */
+        }
+      });
+    });
+  });
+</script>

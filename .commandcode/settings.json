@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(node -e \"const p=require('./node_modules/vite/package.json'); console.log(p.version)\")",
+      "Shell(npm:*)",
+      "Shell(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4321/)",
+      "Shell(curl -s -o /dev/null -w %{http_code}\\n http://localhost:4321/src/components/Search.astro?astro&type=script&index=0&lang.ts)",
+      "Shell(curl -s http://localhost:4321/src/components/Search.astro?astro&type=script&index=0&lang.ts)",
+      "Shell(curl -s -o /dev/null -w module: %{http_code}\\n http://localhost:4321/src/components/Search.astro?astro&type=script&index=0&lang.ts)",
+      "Shell(curl -s -o /dev/null -w page: %{http_code}\\n http://localhost:4321/)",
+      "Shell(grep:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

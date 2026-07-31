@@ -1,0 +1,126 @@
+{
+  "num": 18,
+  "folder": "18_mixture-of-experts",
+  "part": {
+    "name": "Scaling and Experimentation",
+    "slug": "scaling-and-experimentation"
+  },
+  "title": "Mixture of Experts",
+  "summary": "router, top-k, expert utilization, load balancing.",
+  "readmeTitle": "Project 18: Mixture Of Experts",
+  "hook": "router, top-k, expert utilization, load balancing.",
+  "sections": [
+    {
+      "heading": "__intro__",
+      "slug": "",
+      "body": ""
+    },
+    {
+      "heading": "Hook",
+      "slug": "hook",
+      "body": "\nWhy would anyone build a model with parts that stay asleep most of the time? That sounds wrong on purpose. You spend money training millions or billions of parameters, then for each token you wake up only a small fraction of them. If dense models already work, why add a router, a pile of experts, new failure modes, and a fresh way for training to go off the rails?\n\nThe short answer is that one giant feedforward network makes every token pay for every bit of knowledge, even when most of that knowledge is irrelevant. Mixture of Experts fixes that by turning one big general-purpose worker into a team of specialists, then forcing a router to decide who should handle each token.\n\nI spent the better part of last year on this problem. A preprint I wrote on evolutionary Mixture-of-LoRA was, essentially, a long argument about which part of an MoE-LoRA system was actually doing the work. The honest answer surprised me. I will get to that.\n"
+    },
+    {
+      "heading": "The Concept",
+      "slug": "the-concept",
+      "body": "\nStart with a normal transformer block. After attention, each token goes through a feedforward network, often called the FFN. You can think of the FFN as a workshop that every token visits alone. Attention decides what context matters, and the FFN turns that context into something useful. It is where a lot of the model's factual and pattern-matching behavior lives.\n\nIn a dense model, every token enters the same workshop. That means the token `\"def\"`, the token `\"mitochondria\"`, and the token `\"therefore\"` all use the same set of weights in the FFN. The workshop has to be decent at everything because it serves everyone.\n\nMixture of Experts changes the workshop into a building with multiple rooms, each with its own specialist team. One room might get better at code-like patterns. Another might drift toward names and entities. Another becomes good at punctuation-heavy structure. Nobody assigns these roles by hand. The model discovers them during training, sometimes in ways that look nothing like the clean taxonomy you imagined. The important design change is simple: each token does not go through all rooms. A router looks at the token's hidden state, scores the experts, picks the top few, and sends the token only there.\n\nI originally assumed expert specialization would look like recognizable domains. Code expert here, prose expert there. After staring at routing histograms for a few weeks during that work, I gave that up. The categories the router invents are weirder, narrower, and sometimes embarrassingly token-level. One expert in one of our runs became, basically, the \"open-paren\" expert. That is not a joke.\n\nSo instead of one feedforward network for every token, you get many feedforward networks total, but only a few active per token. That is sparse computation — most of the parameters exist, but only a subset participates in any one forward pass.\n\nIf dense FFN is one huge call center where every question hits the same staff, MoE is a dispatch system with specialists. The dispatcher listens to the question and sends it to the top one or two departments. The company can employ far more expertise overall without putting the full staff on every call. That is the whole economic argument for MoE: more total parameters, but roughly similar active compute per token.\n\nNow the confusion that usually shows up. If only some experts handle each token, doesn't that make the model fragile? And doesn't the router just learn to send everything to one expert? Yes, on both counts. If one expert is great, why not let it do all the work? Because then the other experts stop learning, and your fancy specialist building turns back into one crowded room with extra rent.\n\nThat failure has a name: router collapse. The router starts favoring one or two experts for most tokens. Those experts get more gradient updates, so they improve faster. Because they improve faster, the router prefers them even more. Positive feedback kicks in. The rich get richer. The neglected experts become dead weight.\n\nThis is why MoE is not \"add more FFNs.\" The router is now part of the learning problem. I will say it more strongly: most beginner explanations of MoE are honestly terrible because they describe the experts and treat the router as a footnote. The router is the project. Get the router wrong and the experts may as well not exist.\n\n### What the Router Actually Computes\n\nYou already know the hidden state of a token is a list of numbers representing what the model currently \"thinks\" about that token in context. Call that hidden state `x`. The router is just a linear layer that takes `x` and produces one score per expert. If you have 4 experts, the router turns one token representation into 4 scores.\n\nThose scores are not yet probabilities. They are raw preferences. Then you apply `softmax`, which converts the scores into numbers between 0 and 1 that add up to 1, giving you a routing distribution. If expert 2 gets `0.55`, expert 0 gets `0.30`, expert 1 gets `0.10`, and expert 3 gets `0.05`, then for top-2 routing you keep experts 2 and 0, ignore the rest, run the token through those two experts, and combine their outputs with weights based on the routing scores. In English, this token mostly wants expert 2, it also wants some help from expert 0, and the other experts do not get involved.\n\nNow the equation, because you have earned it. Let:\n\n- `x` be the token hidden state\n- `W_router` be the router's weights\n- `N` be the number of experts\n- `p` be the routing probabilities over those experts\n\nThen the router computes:\n\n```text\np = softmax(x W_router)\n```\n\nWhat each symbol is:\n\n- `x` is one token's current representation\n- `W_router` is the learned matrix that turns that representation into expert scores\n- `x W_router` gives one score per expert\n- `softmax(...)` turns those scores into probabilities that sum to 1\n\nThen if the router picks experts `i` and `j`, the output is:\n\n```text\ny = p_i * Expert_i(x) + p_j * Expert_j(x)\n```\n\nRun the token through expert `i`, run it through expert `j`, then mix those two outputs using the router's confidence. Top-1 routing removes the second term: one expert wins and everyone else sits out. Top-2 routing keeps two experts, costs more compute than top-1, but is usually more stable and often gives better quality than people expect from \"just one more expert.\"\n\nThe mental model I ended up with, after enough debugging, is that the router behaves like a dispatcher who only learned the job by watching which calls did not result in a complaint. There is no manager telling it the right call to make. There is only the loss yelling at it after the fact. That changes how you read a bad routing histogram. It is not the router being lazy. It is the router doing the only thing the gradient ever rewarded it for.\n\n### Why Experts Help At All\n\nA dense FFN must compress many patterns into one set of weights, whereas an MoE layer can store more patterns because different experts can specialize. This is the trick behind statements like \"a model has 47B parameters but only 12B active per token.\" The full checkpoint contains a large amount of learned knowledge, but for any one token, only a smaller active slice runs.\n\nMoE therefore gives you a new knob. Total parameters set how much knowledge the model can store. Active parameters set how much compute each token pays for. Dense models tie those two quantities together; MoE partly separates them. That separation is why frontier models care about this design. Figure 11.1 illustrates the router collapse failure, and Figure 11.2 shows how to read expert utilization to diagnose whether routing is healthy.\n\n![Figure 11.1. Mixture-of-experts works only when the router distributes traffic across the expert pool; collapse sends most tokens to one expert and wastes the rest.](figures/fig_moe_router_collapse.png)\n\n![Figure 11.2. Expert utilization tells you whether the MoE layer is healthy: balanced routing keeps the full pool learning, while collapse quietly turns most experts into dead weight.](figures/fig_moe_utilization_histogram.png)\n"
+    },
+    {
+      "heading": "Why It Matters",
+      "slug": "why-it-matters",
+      "body": "\nWithout MoE, growing model capacity usually means growing per-token compute — every token pays the full bill. If you double the width of dense feedforward layers across the model, you also double a big chunk of the work done for every token at training time and inference time.\n\nMoE breaks that link. You can increase total parameters by adding experts while keeping only top-1 or top-2 active, which means more storage of learned behavior without making every token expensive in the same way a dense expansion would. This matters for three reasons, and the third one is the one nobody warned me about.\n\n### 1. It changes the scaling game\n\nDense scaling says: \"Want more capability? Spend more compute every time.\" MoE says: \"Want more capability? Add more specialists, but only wake a few.\" That is not free. Routing adds overhead, training gets more fragile, and communication gets harder in distributed systems. The economics can still work out well enough to matter.\n\n### 2. It creates a new failure surface\n\nA dense FFN does not have routing collapse because there is nowhere to route; every token goes through the same path. MoE can fail in ways dense models cannot. One expert absorbs nearly all traffic. Some experts become undertrained. Top-1 routing becomes brittle, expert assignments drift wildly during training, and load balancing loss fights task loss too hard and hurts quality. You do not really understand MoE until you watch it fail.\n\nIn that ablation work, the failure mode I had braced for was router collapse to a single expert. The failure I actually got first was the opposite. The router fanned traffic out almost perfectly evenly across all experts, which sounds healthy, except none of them were learning anything useful because no token had committed to any of them. Balanced is not the same as alive. That was a humbling Tuesday.\n\n### 3. It explains why \"parameter count\" gets slippery\n\nOnce MoE enters the picture, \"How big is the model?\" stops being a single clean number. You now need at least three numbers: total parameters in the checkpoint, active parameters per token, and how many experts are actually doing useful work. A model with 40B total parameters and 12B active can behave very differently from a dense 12B model, even if they spend similar compute per token at runtime. A sparse 8x7B model does not behave like \"56B dense.\" It stores more knowledge than a 7B dense model, but each token still only activates a small slice, and the active path is what matters.\n"
+    },
+    {
+      "heading": "How to run this project",
+      "slug": "how-to-run-this-project",
+      "body": "\n```bash\npython projects/18_mixture-of-experts/build.py --tiny\n\npython projects/18_mixture-of-experts/build.py --full\n\npython projects/18_mixture-of-experts/break_it.py\n```\n"
+    },
+    {
+      "heading": "Outputs",
+      "slug": "outputs",
+      "body": "\n_To be captured in PR 3. Will include loss curves, sample generations, and any benchmark results._\n"
+    },
+    {
+      "heading": "Read in the book",
+      "slug": "read-in-the-book",
+      "body": "\nThis project is Chapter 18 of *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Buy the book at <https://leanpub.com/under-the-hood>.\n"
+    }
+  ],
+  "files": {
+    "build": {
+      "name": "build.py",
+      "content": "\"\"\"\nProject 18: Mixture Of Experts\n\nCanonical runnable build for this project. Generated by tools/extract_code.py\nfrom the book's chapter markdown — re-run that tool to regenerate.\n\"\"\"\n\n# === Step 1: Isolate the FFN boundary ===\n\nx = x + self.attn(self.norm1(x))\nx = x + self.ffn(self.norm2(x))\n\n# === Step 2: Build one expert ===\n\nclass Expert(nn.Module):\n    def __init__(self, d_model: int, d_ff: int):\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(d_model, d_ff),\n            nn.GELU(),\n            nn.Linear(d_ff, d_model),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n\n# === Step 3: Add multiple experts ===\n\nself.experts = nn.ModuleList([\n    Expert(d_model, d_ff) for _ in range(num_experts)\n])\n\n# === Step 4: Add the router ===\n\nself.router = nn.Linear(d_model, num_experts, bias=False)\n\n# === Step 5: Convert scores into routing probabilities ===\n\nrouter_logits = self.router(x)           # (B, T, N)\nrouter_probs = torch.softmax(router_logits, dim=-1)\n\n# === Step 6: Select the top-k experts ===\n\ntopk_probs, topk_idx = torch.topk(router_probs, k=2, dim=-1)\n\ntopk_probs = topk_probs / topk_probs.sum(dim=-1, keepdim=True)\n\n# === Step 7: Run only the chosen experts ===\n\nexpert_outputs = torch.stack([expert(x) for expert in self.experts], dim=2)\n# shape: (B, T, N, d)\n\nmask = torch.zeros_like(router_probs)\nmask.scatter_(-1, topk_idx, topk_probs)\n# shape: (B, T, N)\n\ny = (expert_outputs * mask.unsqueeze(-1)).sum(dim=2)\n# shape: (B, T, d)\n\n# === Step 8: Replace one block's FFN with the MoE layer ===\n\nx = x + self.attn(self.norm1(x))\nx = x + self.moe(self.norm2(x))\n\n# === Step 9: Track expert utilization ===\n\nwith torch.no_grad():\n    flat_idx = topk_idx.reshape(-1)\n    counts = torch.bincount(flat_idx, minlength=num_experts)\n\n# === Step 11: Add the load-balancing auxiliary loss ===\n\nimportance = router_probs.mean(dim=(0, 1))  # (N,)\nload = mask.sum(dim=(0, 1)) / mask.sum()    # (N,)\n\naux_loss = num_experts * torch.sum(importance * load)\n\nloss = lm_loss + alpha * aux_loss\n"
+    },
+    "breakIt": {
+      "name": "break_it.py",
+      "content": "\"\"\"\nProject 18: BREAK IT experiment.\n\nDeliberately sabotages one mechanism from build.py to show what happens\nwhen it's removed. Compare outputs to the working version.\n\"\"\"\n\ndead = torch.tensor([0, 0, 1, 1], device=x.device, dtype=torch.bool)\nrouter_logits = self.router(x)\nrouter_logits[..., dead] = -1e9\n\nfor p in self.experts[2].parameters():\n    p.requires_grad = False\nfor p in self.experts[3].parameters():\n    p.requires_grad = False\n\ndead = torch.tensor([0, 0, 0, 1], device=x.device, dtype=torch.bool)\nrouter_logits[..., dead] = -1e9\n"
+    },
+    "steps": [
+      {
+        "name": "step_01_isolate-the-ffn-boundary.py",
+        "title": "Isolate The Ffn Boundary",
+        "n": 1,
+        "content": "\"\"\"\nProject 18: Step 1 — Isolate the FFN boundary\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nx = x + self.attn(self.norm1(x))\nx = x + self.ffn(self.norm2(x))\n"
+      },
+      {
+        "name": "step_02_build-one-expert.py",
+        "title": "Build One Expert",
+        "n": 2,
+        "content": "\"\"\"\nProject 18: Step 2 — Build one expert\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nclass Expert(nn.Module):\n    def __init__(self, d_model: int, d_ff: int):\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(d_model, d_ff),\n            nn.GELU(),\n            nn.Linear(d_ff, d_model),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n"
+      },
+      {
+        "name": "step_03_add-multiple-experts.py",
+        "title": "Add Multiple Experts",
+        "n": 3,
+        "content": "\"\"\"\nProject 18: Step 3 — Add multiple experts\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nself.experts = nn.ModuleList([\n    Expert(d_model, d_ff) for _ in range(num_experts)\n])\n"
+      },
+      {
+        "name": "step_04_add-the-router.py",
+        "title": "Add The Router",
+        "n": 4,
+        "content": "\"\"\"\nProject 18: Step 4 — Add the router\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nself.router = nn.Linear(d_model, num_experts, bias=False)\n"
+      },
+      {
+        "name": "step_05_convert-scores-into-routing-probabilities.py",
+        "title": "Convert Scores Into Routing Probabilities",
+        "n": 5,
+        "content": "\"\"\"\nProject 18: Step 5 — Convert scores into routing probabilities\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nrouter_logits = self.router(x)           # (B, T, N)\nrouter_probs = torch.softmax(router_logits, dim=-1)\n"
+      },
+      {
+        "name": "step_06_select-the-top-k-experts.py",
+        "title": "Select The Top K Experts",
+        "n": 6,
+        "content": "\"\"\"\nProject 18: Step 6 — Select the top-k experts\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\ntopk_probs, topk_idx = torch.topk(router_probs, k=2, dim=-1)\n\ntopk_probs = topk_probs / topk_probs.sum(dim=-1, keepdim=True)\n"
+      },
+      {
+        "name": "step_07_run-only-the-chosen-experts.py",
+        "title": "Run Only The Chosen Experts",
+        "n": 7,
+        "content": "\"\"\"\nProject 18: Step 7 — Run only the chosen experts\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nexpert_outputs = torch.stack([expert(x) for expert in self.experts], dim=2)\n# shape: (B, T, N, d)\n\nmask = torch.zeros_like(router_probs)\nmask.scatter_(-1, topk_idx, topk_probs)\n# shape: (B, T, N)\n\ny = (expert_outputs * mask.unsqueeze(-1)).sum(dim=2)\n# shape: (B, T, d)\n"
+      },
+      {
+        "name": "step_08_replace-one-blocks-ffn-with-the-moe-layer.py",
+        "title": "Replace One Blocks Ffn With The Moe Layer",
+        "n": 8,
+        "content": "\"\"\"\nProject 18: Step 8 — Replace one block's FFN with the MoE layer\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nx = x + self.attn(self.norm1(x))\nx = x + self.moe(self.norm2(x))\n"
+      },
+      {
+        "name": "step_09_track-expert-utilization.py",
+        "title": "Track Expert Utilization",
+        "n": 9,
+        "content": "\"\"\"\nProject 18: Step 9 — Track expert utilization\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nwith torch.no_grad():\n    flat_idx = topk_idx.reshape(-1)\n    counts = torch.bincount(flat_idx, minlength=num_experts)\n"
+      },
+      {
+        "name": "step_11_add-the-load-balancing-auxiliary-loss.py",
+        "title": "Add The Load Balancing Auxiliary Loss",
+        "n": 11,
+        "content": "\"\"\"\nProject 18: Step 11 — Add the load-balancing auxiliary loss\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nimportance = router_probs.mean(dim=(0, 1))  # (N,)\nload = mask.sum(dim=(0, 1)) / mask.sum()    # (N,)\n\naux_loss = num_experts * torch.sum(importance * load)\n\nloss = lm_loss + alpha * aux_loss\n"
+      }
+    ]
+  },
+  "outputs": [],
+  "tests": [],
+  "hasBreakIt": true,
+  "hasOutputs": false,
+  "hasTests": false
+}

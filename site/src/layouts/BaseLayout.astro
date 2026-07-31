@@ -1,0 +1,71 @@
+---
+import "../styles/global.css";
+import Sidebar from "../components/Sidebar.astro";
+import TopBar from "../components/TopBar.astro";
+import book from "../content/book.json";
+
+interface Props {
+  /** active path for nav highlight, e.g. "/projects/1" */
+  active?: string;
+  /** hide the sidebar (for landing page) */
+  bare?: boolean;
+  title?: string;
+}
+
+const { active, bare = false, title } = Astro.props;
+const pageTitle = title ? `${title} · ${book.title}` : `${book.title} — ${book.subtitle}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={book.subtitle} />
+    <meta name="theme-color" content="#0a0a0b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <div class:list={["layout", bare && "layout--bare"]}>
+      <Sidebar active={active} />
+      <div class="main-column">
+        <TopBar />
+        <main class:list={["content", bare && "content--bare"]} data-pagefind-body={bare ? undefined : true}>
+          <slot />
+        </main>
+      </div>
+    </div>
+
+    <style>
+      .layout {
+        display: grid;
+        grid-template-columns: 264px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+      .layout--bare {
+        grid-template-columns: 1fr;
+      }
+      .main-column {
+        display: flex;
+        flex-direction: column;
+        min-width: 0; /* allow children to shrink + scroll */
+        overflow: hidden;
+      }
+      .content {
+        flex: 1;
+        padding: 3rem max(2rem, calc((100% - 820px) / 2)) 6rem;
+      }
+      .content--bare {
+        padding: 0;
+      }
+      /* mobile: collapse sidebar into a drawer toggled via checkbox hack */
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </body>
+</html>

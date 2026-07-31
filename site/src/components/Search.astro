@@ -1,0 +1,252 @@
+---
+// Pagefind-powered search. The index is built post-build (see package.json).
+// This component renders a trigger button + a results panel that lazily loads
+// the Pagefind runtime on first open.
+---
+
+<div class="search" data-search>
+  <button class="search-trigger" data-search-toggle aria-label="Search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+    <span class="search-trigger-text">Search</span>
+    <kbd>/</kbd>
+  </button>
+
+  <div class="search-panel" data-search-panel hidden>
+    <div class="search-panel-inner">
+      <input
+        type="text"
+        class="search-input"
+        data-search-input
+        placeholder="Search projects, concepts, code…"
+        autocomplete="off"
+      />
+      <div class="search-results" data-search-results></div>
+      <div class="search-foot">
+        <span>esc to close</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .search-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line-strong);
+    color: var(--color-muted);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: border-color 0.12s ease;
+  }
+  .search-trigger:hover {
+    border-color: var(--color-accent-dim);
+    color: var(--color-fg);
+  }
+  .search-trigger kbd {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line-strong);
+    border-radius: 3px;
+    padding: 0.05rem 0.3rem;
+    color: var(--color-faint);
+  }
+  .search-trigger-text {
+    display: inline;
+  }
+  @media (max-width: 600px) {
+    .search-trigger-text,
+    .search-trigger kbd {
+      display: none;
+    }
+  }
+
+  .search-panel[hidden] {
+    display: none;
+  }
+  .search-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 12vh;
+  }
+  .search-panel-inner {
+    width: min(640px, 92vw);
+    background: var(--color-surface);
+    border: 1px solid var(--color-line-strong);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+  .search-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--color-line);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    padding: 1rem 1.2rem;
+    outline: none;
+  }
+  .search-input::placeholder {
+    color: var(--color-faint);
+  }
+  .search-results {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 0.4rem;
+  }
+  .search-foot {
+    border-top: 1px solid var(--color-line);
+    padding: 0.5rem 1.2rem;
+    font-size: 0.72rem;
+    color: var(--color-faint);
+    font-family: var(--font-mono);
+  }
+
+  /* result rows injected by JS get these styles via :global */
+  :global(.search-result) {
+    display: block;
+    padding: 0.6rem 0.8rem;
+    border-radius: 5px;
+    text-decoration: none;
+    color: var(--color-fg);
+    cursor: pointer;
+  }
+  :global(.search-result:hover),
+  :global(.search-result.is-active) {
+    background: var(--color-surface-2);
+  }
+  :global(.search-result-title) {
+    font-size: 0.88rem;
+    color: var(--color-fg);
+    display: block;
+  }
+  :global(.search-result-excerpt) {
+    font-size: 0.78rem;
+    color: var(--color-muted);
+    margin-top: 0.2rem;
+    line-height: 1.45;
+  }
+  :global(.search-result-excerpt mark) {
+    background: color-mix(in srgb, var(--color-accent) 25%, transparent);
+    color: #fff;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+  :global(.search-empty) {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--color-faint);
+    font-size: 0.85rem;
+  }
+</style>
+
+<script>
+  let pagefind = null;
+
+  const openPanel = () => {
+    const panel = document.querySelector("[data-search-panel]");
+    if (!panel) return;
+    panel.hidden = false;
+    const input = document.querySelector("[data-search-input]");
+    input?.focus();
+  };
+  const closePanel = () => {
+    const panel = document.querySelector("[data-search-panel]");
+    if (panel) panel.hidden = true;
+  };
+
+  const runSearch = async (query) => {
+    const resultsEl = document.querySelector("[data-search-results]");
+    if (!resultsEl) return;
+    if (!query.trim()) {
+      resultsEl.innerHTML = "";
+      return;
+    }
+    if (!pagefind) {
+      resultsEl.innerHTML = '<div class="search-empty">Loading index…</div>';
+      try {
+        // The path is served from the built index (dist/pagefind) and doesn't
+        // exist during dev, so keep it out of Vite's static import analysis.
+        const pagefindPath = "/pagefind/pagefind.js";
+        pagefind = await import(/* @vite-ignore */ pagefindPath);
+        await pagefind.options({ excerptLength: 12 });
+      } catch (err) {
+        pagefind = null;
+        if (err.message.includes("Failed to fetch") || err.message.includes("dynamically imported")) {
+          resultsEl.innerHTML =
+            '<div class="search-empty">Search index not available in dev mode.<br/>Run <code>npm run build && npm run preview</code> to use search.</div>';
+        } else {
+          resultsEl.innerHTML =
+            '<div class="search-empty">Index unavailable: ' + err.message + "</div>";
+        }
+        return;
+      }
+    }
+    const search = await pagefind.search(query);
+    const top = search.results.slice(0, 8);
+    if (top.length === 0) {
+      resultsEl.innerHTML = '<div class="search-empty">No matches.</div>';
+      return;
+    }
+    const rendered = await Promise.all(top.map((r) => r.data()));
+    resultsEl.innerHTML = rendered
+      .map(
+        (r) => `
+        <a class="search-result" href="${r.url}">
+          <span class="search-result-title">${r.meta?.title || r.url}</span>
+          <span class="search-result-excerpt">${r.excerpt}</span>
+        </a>`
+      )
+      .join("");
+  };
+
+  window.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener("click", (e) => {
+      const t = e.target;
+      if (t.closest("[data-search-toggle]")) {
+        const panel = document.querySelector("[data-search-panel]");
+        if (panel?.hidden) openPanel();
+        else closePanel();
+        return;
+      }
+      if (!t.closest("[data-search-panel]") && !t.closest("[data-search-toggle]")) {
+        const panel = document.querySelector("[data-search-panel]");
+        if (panel && !panel.hidden) closePanel();
+      }
+    });
+
+    const input = document.querySelector("[data-search-input]");
+    if (input) {
+      let debounce;
+      input.addEventListener("input", (e) => {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => runSearch(e.target.value), 120);
+      });
+    }
+
+    document.addEventListener("keydown", (e) => {
+      // "/" opens search (when not already typing)
+      if (e.key === "/" && !["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        openPanel();
+      }
+      if (e.key === "Escape") closePanel();
+    });
+  });
+</script>

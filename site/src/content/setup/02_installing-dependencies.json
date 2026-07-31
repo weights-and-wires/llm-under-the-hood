@@ -1,0 +1,43 @@
+{
+  "slug": "02_installing-dependencies",
+  "filename": "02_installing-dependencies.md",
+  "title": "2. Installing dependencies",
+  "body": "# 2. Installing dependencies\n\n## Core install (every project)\n\n```bash\npip install -r requirements.txt\n```\n\nThis gives you `torch`, `numpy`, `matplotlib`, `tiktoken`, `pytest` — enough to run roughly Projects 1–7 and to run every project's smoke tests.\n\n## Dev install (if you'll modify code or run linters)\n\n```bash\npip install -e \".[dev]\"\n```\n\nAdds `ruff`, `pyright`, `pytest-xdist`, `jupytext`.\n\n## Full install (heavier projects: datasets, transformers, FAISS, mixed-precision)\n\n```bash\npip install -e \".[full]\"\n```\n\nAdds `datasets`, `transformers`, `huggingface_hub`, `faiss-cpu`, `mmh3`, `pandas`, `tqdm`. Some later projects (8, 10, 14, 15, 28) need these.\n\n## Per-project extras\n\nA few projects need exotic dependencies (`flash-attn`, `bitsandbytes`, `llama-cpp-python`). Those live in `projects/NN_slug/requirements-extra.txt` and you install them only if you do that project:\n\n```bash\npip install -r projects/16_quantization-and-deployment/requirements-extra.txt\n```\n\n## CUDA / CPU torch install\n\nThe default `requirements.txt` line `torch>=2.2` gets you whatever torch wheel pip picks for your platform — usually the **CUDA** build on Linux/Windows with a GPU, and the **CPU** build on macOS.\n\nIf you want to force the CPU build (smaller, faster install, no GPU needed):\n\n```bash\npip install --index-url https://download.pytorch.org/whl/cpu torch\n```\n\nIf you want a specific CUDA version (e.g. CUDA 12.1):\n\n```bash\npip install --index-url https://download.pytorch.org/whl/cu121 torch\n```\n\nThe full matrix is at <https://pytorch.org/get-started/locally/>.\n\n## Verifying the install\n\n```bash\npython -c \"import torch; print(torch.__version__, torch.cuda.is_available())\"\npytest --collect-only\n```\n\nIf the second command reports collected tests without errors, you're done.\n",
+  "sections": [
+    {
+      "heading": "__intro__",
+      "slug": "",
+      "body": ""
+    },
+    {
+      "heading": "Core install (every project)",
+      "slug": "core-install-every-project",
+      "body": "\n```bash\npip install -r requirements.txt\n```\n\nThis gives you `torch`, `numpy`, `matplotlib`, `tiktoken`, `pytest` — enough to run roughly Projects 1–7 and to run every project's smoke tests.\n"
+    },
+    {
+      "heading": "Dev install (if you'll modify code or run linters)",
+      "slug": "dev-install-if-youll-modify-code-or-run-linters",
+      "body": "\n```bash\npip install -e \".[dev]\"\n```\n\nAdds `ruff`, `pyright`, `pytest-xdist`, `jupytext`.\n"
+    },
+    {
+      "heading": "Full install (heavier projects: datasets, transformers, FAISS, mixed-precision)",
+      "slug": "full-install-heavier-projects-datasets-transformers-faiss-mixed-precision",
+      "body": "\n```bash\npip install -e \".[full]\"\n```\n\nAdds `datasets`, `transformers`, `huggingface_hub`, `faiss-cpu`, `mmh3`, `pandas`, `tqdm`. Some later projects (8, 10, 14, 15, 28) need these.\n"
+    },
+    {
+      "heading": "Per-project extras",
+      "slug": "per-project-extras",
+      "body": "\nA few projects need exotic dependencies (`flash-attn`, `bitsandbytes`, `llama-cpp-python`). Those live in `projects/NN_slug/requirements-extra.txt` and you install them only if you do that project:\n\n```bash\npip install -r projects/16_quantization-and-deployment/requirements-extra.txt\n```\n"
+    },
+    {
+      "heading": "CUDA / CPU torch install",
+      "slug": "cuda-cpu-torch-install",
+      "body": "\nThe default `requirements.txt` line `torch>=2.2` gets you whatever torch wheel pip picks for your platform — usually the **CUDA** build on Linux/Windows with a GPU, and the **CPU** build on macOS.\n\nIf you want to force the CPU build (smaller, faster install, no GPU needed):\n\n```bash\npip install --index-url https://download.pytorch.org/whl/cpu torch\n```\n\nIf you want a specific CUDA version (e.g. CUDA 12.1):\n\n```bash\npip install --index-url https://download.pytorch.org/whl/cu121 torch\n```\n\nThe full matrix is at <https://pytorch.org/get-started/locally/>.\n"
+    },
+    {
+      "heading": "Verifying the install",
+      "slug": "verifying-the-install",
+      "body": "\n```bash\npython -c \"import torch; print(torch.__version__, torch.cuda.is_available())\"\npytest --collect-only\n```\n\nIf the second command reports collected tests without errors, you're done.\n"
+    }
+  ]
+}

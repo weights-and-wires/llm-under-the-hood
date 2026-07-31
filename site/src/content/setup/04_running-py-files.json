@@ -1,0 +1,38 @@
+{
+  "slug": "04_running-py-files",
+  "filename": "04_running-py-files.md",
+  "title": "4. Running `.py` files (and converting to notebooks if you prefer)",
+  "body": "# 4. Running `.py` files (and converting to notebooks if you prefer)\n\nThis repo ships `.py` files, not `.ipynb` notebooks. The reasons:\n\n- `.py` runs cleanly in CI; notebooks don't (output cells churn the diff).\n- `.py` works in any editor; notebooks lock you into Jupyter / VSCode notebook UI.\n- `.py` plays well with version control; notebook JSON does not.\n\nBut you can still get a notebook experience if that's how you prefer to learn.\n\n## Running a project's main script\n\n```bash\n# From the repo root:\npython projects/01_the-learning-machine/build.py\n```\n\nCommon flags every project supports:\n\n| Flag | What it does |\n|------|--------------|\n| (none) | Default config — runs on whatever hardware you have |\n| `--tiny` | Proxy config: tiny model, synthetic data, ~60s on CPU |\n| `--full` | Full lab — requires the hardware described in [03_gpu-and-hardware-tiers.md](03_gpu-and-hardware-tiers.md) |\n| `--seed N` | Override the default seed (0) for reproducibility experiments |\n| `--output-dir PATH` | Where to write outputs (defaults to `projects/NN_slug/outputs/`) |\n\n## Running the BREAK IT experiment\n\nEvery project has a `break_it.py` next to `build.py`. The BREAK IT runs the same code with one mechanism deliberately disabled or sabotaged — you compare the output to `build.py` to learn *why* that mechanism is there:\n\n```bash\npython projects/01_the-learning-machine/break_it.py\n```\n\n## Running tests\n\n```bash\n# All projects\npytest\n\n# One project\npytest projects/01_the-learning-machine/tests/\n\n# Only fast tests (skip @pytest.mark.slow and @pytest.mark.gpu)\npytest -m \"not slow and not gpu\"\n\n# Including slow tests\nUTH_RUN_SLOW=1 pytest\n```\n\n## Converting `.py` to `.ipynb`\n\nIf you prefer to step through cells in Jupyter, use `jupytext`. Install once:\n\n```bash\npip install jupytext\n```\n\nThen convert any project's `build.py`:\n\n```bash\njupytext --to ipynb projects/01_the-learning-machine/build.py\n# produces projects/01_the-learning-machine/build.ipynb\njupyter lab projects/01_the-learning-machine/build.ipynb\n```\n\nThe conversion treats `#%%` lines as cell breaks. If you want cleaner cell boundaries, edit the `.py` to add `#%%` markers where you'd like a new cell — jupytext respects them on re-conversion.\n\nTo keep `.py` and `.ipynb` synced as you edit the notebook:\n\n```bash\njupytext --set-formats py:percent,ipynb projects/01_the-learning-machine/build.py\n```\n\nAfter that, saving the `.ipynb` auto-updates the `.py` and vice versa.\n\n## Why we don't ship notebooks directly\n\nWe considered shipping both formats. Three reasons we didn't:\n\n1. **Output cell churn.** A notebook re-run changes random cell outputs and version-controlled metadata. The diffs become noise.\n2. **Pedagogical drift.** Notebooks reward you for executing top-to-bottom. The book's BREAK IT philosophy needs you to comment lines out, re-run subsections, and compare. That's friction in a notebook UI.\n3. **Honest deps.** A `.py` file declares its imports at the top. A notebook hides them across cells. The book is about understanding what's actually happening — that starts with imports.\n\nIf you disagree, the `jupytext` recipe above gets you a notebook in 10 seconds. We just don't make it the default.\n",
+  "sections": [
+    {
+      "heading": "__intro__",
+      "slug": "",
+      "body": "\nThis repo ships `.py` files, not `.ipynb` notebooks. The reasons:\n\n- `.py` runs cleanly in CI; notebooks don't (output cells churn the diff).\n- `.py` works in any editor; notebooks lock you into Jupyter / VSCode notebook UI.\n- `.py` plays well with version control; notebook JSON does not.\n\nBut you can still get a notebook experience if that's how you prefer to learn.\n"
+    },
+    {
+      "heading": "Running a project's main script",
+      "slug": "running-a-projects-main-script",
+      "body": "\n```bash\npython projects/01_the-learning-machine/build.py\n```\n\nCommon flags every project supports:\n\n| Flag | What it does |\n|------|--------------|\n| (none) | Default config — runs on whatever hardware you have |\n| `--tiny` | Proxy config: tiny model, synthetic data, ~60s on CPU |\n| `--full` | Full lab — requires the hardware described in [03_gpu-and-hardware-tiers.md](03_gpu-and-hardware-tiers.md) |\n| `--seed N` | Override the default seed (0) for reproducibility experiments |\n| `--output-dir PATH` | Where to write outputs (defaults to `projects/NN_slug/outputs/`) |\n"
+    },
+    {
+      "heading": "Running the BREAK IT experiment",
+      "slug": "running-the-break-it-experiment",
+      "body": "\nEvery project has a `break_it.py` next to `build.py`. The BREAK IT runs the same code with one mechanism deliberately disabled or sabotaged — you compare the output to `build.py` to learn *why* that mechanism is there:\n\n```bash\npython projects/01_the-learning-machine/break_it.py\n```\n"
+    },
+    {
+      "heading": "Running tests",
+      "slug": "running-tests",
+      "body": "\n```bash\npytest\n\npytest projects/01_the-learning-machine/tests/\n\npytest -m \"not slow and not gpu\"\n\nUTH_RUN_SLOW=1 pytest\n```\n"
+    },
+    {
+      "heading": "Converting `.py` to `.ipynb`",
+      "slug": "converting-py-to-ipynb",
+      "body": "\nIf you prefer to step through cells in Jupyter, use `jupytext`. Install once:\n\n```bash\npip install jupytext\n```\n\nThen convert any project's `build.py`:\n\n```bash\njupytext --to ipynb projects/01_the-learning-machine/build.py\njupyter lab projects/01_the-learning-machine/build.ipynb\n```\n\nThe conversion treats `#%%` lines as cell breaks. If you want cleaner cell boundaries, edit the `.py` to add `#%%` markers where you'd like a new cell — jupytext respects them on re-conversion.\n\nTo keep `.py` and `.ipynb` synced as you edit the notebook:\n\n```bash\njupytext --set-formats py:percent,ipynb projects/01_the-learning-machine/build.py\n```\n\nAfter that, saving the `.ipynb` auto-updates the `.py` and vice versa.\n"
+    },
+    {
+      "heading": "Why we don't ship notebooks directly",
+      "slug": "why-we-dont-ship-notebooks-directly",
+      "body": "\nWe considered shipping both formats. Three reasons we didn't:\n\n1. **Output cell churn.** A notebook re-run changes random cell outputs and version-controlled metadata. The diffs become noise.\n2. **Pedagogical drift.** Notebooks reward you for executing top-to-bottom. The book's BREAK IT philosophy needs you to comment lines out, re-run subsections, and compare. That's friction in a notebook UI.\n3. **Honest deps.** A `.py` file declares its imports at the top. A notebook hides them across cells. The book is about understanding what's actually happening — that starts with imports.\n\nIf you disagree, the `jupytext` recipe above gets you a notebook in 10 seconds. We just don't make it the default.\n"
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "num": 11,
+  "folder": "11_training-debugging-spikes-nans-and-profiling",
+  "part": {
+    "name": "Training at Scale",
+    "slug": "training-at-scale"
+  },
+  "title": "Training Debugging: Spikes, NaNs, and Profiling.",
+  "summary": "",
+  "readmeTitle": "Project 11: Training Debugging: Spikes, NaNs, and Profiling",
+  "hook": "",
+  "sections": [
+    {
+      "heading": "__intro__",
+      "slug": "",
+      "body": ""
+    },
+    {
+      "heading": "Hook",
+      "slug": "hook",
+      "body": "\nAt step 1,247 of your training run, the loss jumps from 3.2 to 47.8, hangs there for two steps, and then prints `nan`. The training was working, until it wasn't.\n\nThe first instinct most people have is to restart with a smaller learning rate and hope it goes away this time. I had that instinct for years. It cost me real money in cluster hours before I learned the other one.\n\nThis chapter teaches the other instinct: read the training run like a production system you are on-call for, name the specific failure that just happened, and know which knob to turn before you touch anything. By the end of the chapter you will be able to predict a `nan` several minutes before it arrives, and you will know which of half a dozen specific failure modes caused it.\n"
+    },
+    {
+      "heading": "The Concept",
+      "slug": "the-concept",
+      "body": "\nPicture baking a cake in an oven with no window. You can only check whether the cake is done by opening the door, and opening it too often ruins it. Most people training neural networks debug exactly like this. The training loop is the closed oven. The loss curve is the timer ticking on the wall. If something is wrong inside the oven, you find out at the end, when the cake comes out either burnt or raw.\n\nThe fix in both cases is the same. Put instruments inside. Watch the temperature at three points in the oven, not just at the door. Smell the air. Listen for the timer ticking faster or slower than it should. With proper instruments, you do not need to open the door. You can read the state of the cake while it is baking.\n\nA training run has its own set of vital signs. There are four worth measuring continuously, and learning to read all four together is the entire skill this chapter teaches.\n\nI picked up this framing the hard way, before I trained any model. At Aspira I spent years running a multi-state SaaS at a 99.99% uptime target, and the rule there was simple: anything you cannot graph, you cannot debug at 3 AM. Training runs are the same. The difference is that nobody hands you the graphs by default. You have to wire them yourself.\n\nThe first vital sign is the **loss** itself. Every training framework prints this number, and almost every reader of this book has stared at one go down. By itself, loss is a lagging indicator. It tells you the model is sick after the model is already sick. By the time the loss curve bends the wrong way, the failure is already a few steps old, and depending on how aggressive it is, it may already be unrecoverable.\n\nThe second vital sign is the **gradient norm**, computed layer by layer. For each parameter group in the model (say, each transformer block), take the gradients produced by the most recent backward pass and compute their L2 norm. That is one number per block per training step. Plot it. A healthy run shows the gradient norms drifting slowly, with the lines for different blocks staying roughly parallel. A run heading for a spike has one line (usually the embedding layer's or the first attention block's) pulling away from the cluster and climbing faster than the others. By watching gradient norms instead of waiting for the loss to bend, you catch the spike five to fifteen steps earlier. That is enough time to save a checkpoint or kill a doomed run.\n\nAcross thousands of training runs I have logged for cooperative LoRA fusion work on models from a few hundred million to a few billion parameters, this single graph saved more wall-clock than any other instrument. Not because the math is exotic. Because the first attention block almost always leaves the cluster first, and once you have seen that shape three or four times, you stop arguing with the dashboard.\n\nThe third vital sign is the **activation histogram** at each layer boundary. After every transformer block, what does the distribution of hidden-state values look like? Healthy activations have a roughly stable spread, a mean near zero if LayerNorm or RMSNorm sits at that boundary, and bounded extremes. Unhealthy activations spike. One feature dimension suddenly carries values in the hundreds, and the softmax that consumes those values collapses into a near one-hot pattern. Once attention saturates, the gradient through that head becomes tiny, and the head stops contributing to learning. The signature of impending attention saturation appears in the activation histogram several steps before the loss notices.\n\nI expected gradient norms to be the most useful of the four when I first wired this dashboard. I was wrong. The activation tail moves earlier, more clearly, and on a smaller dynamic range. Gradient norms are easier to plot and easier to teach. The activation `abs_max` is what I actually look at first when something feels off.\n\nThe fourth vital sign is the **weight-update ratio**. At each optimizer step, the optimizer adds some quantity Δw to the current weight w. The ratio |Δw| / |w| for each parameter group tells you how aggressively the optimizer is moving that group relative to its current size. There is a rule of thumb, often credited to Andrej Karpathy: a healthy ratio sits near 1e-3. A ratio of 1e-1 means the optimizer is rewriting that layer every single step. The learning rate is much too hot for that layer. A ratio of 1e-6 means the layer is barely moving. Either the gradient signal is dying, or the layer was already converged and is sitting still. Either way, you want to know.\n\n![Figure 11.1. The four vital signs plotted together for a healthy run. Loss drifts down smoothly. Gradient norms drift in a narrow parallel band. Activation max stays bounded. Update ratios cluster near 1e-3.](figures/fig_training_health_baseline.png)\n\nSo far this is bookkeeping. The interesting move is what happens when you start using these four signals together. A loss spike on its own is a fire alarm: useful, but it tells you nothing except that something is burning. The combination of loss, gradient norm, activation distribution, and update ratio is a fire alarm that tells you which floor of the building is on fire, which room, and what is burning. You stop guessing at fixes and start applying targeted ones.\n\nMost training failures fall into a short list of named patterns, and each one has a specific signature across the four instruments.\n\nA **loss spike from a hot learning rate** shows the update ratio drifting upward first, then the activation max, then the gradient norm, then finally the loss, in that order, with the loss arriving last. An **activation explosion from bad initialization** shows the activation max already high at step zero and refusing to come down; the model never enters a healthy state. **Attention saturation** shows one head's contribution to the activation distribution growing while the others shrink; the softmax of that head becomes one-hot, and the head dies. A **mixed-precision overflow** shows a gradient briefly going `inf`, the loss scaler halves itself, and a step gets silently skipped.\n\nA **dead layer** shows one parameter group's update ratio pinned near 1e-6 for thousands of steps while every other group moves normally. This is usually a bad initialization, a wrong learning rate for that group, or, most painfully, a parameter that someone froze and then forgot about. I have shipped that bug twice. Both times the model trained for hours before anyone noticed the frozen block was the one we needed to move the most.\n\nEach one of these patterns has a fingerprint. Once you have seen the fingerprint three or four times, the instruments narrate the failure as it happens. You do not need to wait for the symptom. You name the failure mode while there is still time to clip the gradient, lower the rate, reinitialize the layer, or save the checkpoint before everything blows up.\n\nA small note about what this chapter does not teach. It does not promise to prevent every failure. Some training runs are genuinely impossible: bad data, bad architecture, bad optimizer, hardware that drops bits under load. The job here is narrower: when a run can be saved, you can now save it; when it cannot, you can now name why before the GPU bills mount.\n"
+    },
+    {
+      "heading": "Why It Matters",
+      "slug": "why-it-matters",
+      "body": "\nWithout instrumentation, debugging a training run is mostly theater. You change a hyperparameter, restart, watch the loss for a while, and hope. If the run survives, you keep the change and convince yourself you have learned something. If it does not, you change something else. After a few weeks of this, you have either burned through a research budget without insight or you have given up on training your own models and gone back to fine-tuning APIs that someone else trained.\n\nWith instrumentation, the loop becomes diagnostic instead of superstitious. A spike has a cause. The cause has a signature. The signature is visible in the data before the spike lands. The fix is a specific intervention: clip the gradient, lower the rate, reinitialize the bad layer, switch on a mixed-precision scaler. Each intervention has a measurable effect on the next ten or twenty steps, so you can verify whether the fix worked without waiting for the whole run to finish. Training stops being a black box you pray at and becomes a system you can reason about.\n\nThere is a second reason this chapter sits where it does. Every subsequent chapter in the book trains a model that can fail. **Project 9: Pretraining on the Real Web** pretrained a model on real web data and could spike if the learning rate was wrong. **Project 12: Distributed Training: FSDP and ZeRO (Single-Box Proxy)** shards parameters across processes, and a mis-shard causes silent divergence, silent except in the gradient-norm trace, which shouts. **Project 23: Reward Models and RLHF** introduces reward hacking, which shows up first as a gradient-norm anomaly in the policy head before it shows up in evaluations. **Project 18: Mixture of Experts** trains a routed model, and router collapse appears in the activation distribution before it appears in the loss. Each of these failure modes has the same shape as the ones in this chapter, only with new layers and new names. The skill transfers exactly.\n\nThere is also a third reason worth naming, even though it is less direct. When you can read a training run, you can read other people's runs too. Pull a published tensorboard from a paper repo, look at the gradient-norm curves, and you can often tell whether the run was healthy or just lucky. That is not a small skill. It is the difference between trusting a paper's headline number and understanding the conditions under which the number was produced.\n\nMost published training results do not show the dashboards. I would trust their numbers more if they did. A loss curve without a gradient-norm trace beside it is half a story, and the missing half is almost always the half you would have argued with.\n"
+    },
+    {
+      "heading": "How to run this project",
+      "slug": "how-to-run-this-project",
+      "body": "\n```bash\npython projects/11_training-debugging-spikes-nans-and-profiling/build.py --tiny\n\npython projects/11_training-debugging-spikes-nans-and-profiling/build.py --full\n\npython projects/11_training-debugging-spikes-nans-and-profiling/break_it.py\n```\n"
+    },
+    {
+      "heading": "Outputs",
+      "slug": "outputs",
+      "body": "\n_To be captured in PR 3. Will include loss curves, sample generations, and any benchmark results._\n"
+    },
+    {
+      "heading": "Read in the book",
+      "slug": "read-in-the-book",
+      "body": "\nThis project is Chapter 11 of *Under the Hood: Build Every Layer of a Large Language Model from Scratch*. Buy the book at <https://leanpub.com/under-the-hood>.\n"
+    }
+  ],
+  "files": {
+    "build": {
+      "name": "build.py",
+      "content": "\"\"\"\nProject 11: Training Debugging: Spikes, NaNs, and Profiling\n\nCanonical runnable build for this project. Generated by tools/extract_code.py\nfrom the book's chapter markdown — re-run that tool to regenerate.\n\"\"\"\n\n# === Step 1: Add per-layer gradient norm logging ===\n\ndef group_grad_norms(model):\n    norms = {}\n    for name, module in model.named_modules():\n        params = [p for p in module.parameters(recurse=False)\n                  if p.grad is not None]\n        if not params:\n            continue\n        total_sq = sum((p.grad ** 2).sum().item() for p in params)\n        norms[name] = total_sq ** 0.5\n    return norms\n\n# === Step 2: Add per-layer activation histogram ===\n\nactivation_stats = {}\n\ndef make_hook(name):\n    def hook(module, inputs, output):\n        x = output.detach().float()\n        activation_stats[name] = {\n            \"mean\": x.mean().item(),\n            \"std\": x.std().item(),\n            \"min\": x.min().item(),\n            \"max\": x.max().item(),\n            \"abs_max\": x.abs().max().item(),\n        }\n    return hook\n\nfor name, module in model.named_modules():\n    if isinstance(module, TransformerBlock):\n        module.register_forward_hook(make_hook(name))\n\n# === Step 3: Add weight-update ratio ===\n\ndef update_ratios(model, optimizer_step):\n    pre_norms = {}\n    pre_params = {}\n    for name, p in model.named_parameters():\n        if p.requires_grad:\n            pre_norms[name] = p.data.norm().item()\n            pre_params[name] = p.data.clone()\n    optimizer_step()\n    ratios = {}\n    for name, p in model.named_parameters():\n        if p.requires_grad and pre_norms[name] > 0:\n            delta = (p.data - pre_params[name]).norm().item()\n            ratios[name] = delta / pre_norms[name]\n    return ratios\n\n# === Step 6: Apply gradient clipping and watch the spike absorbed ===\n\ntorch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)\n\n# === Step 7: Mixed-precision overflow detection ===\n\nscaler = torch.cuda.amp.GradScaler()\noverflow_count = 0\nstep_count = 0\n\n# Inside the training loop:\nscaler.scale(loss).backward()\nprev_scale = scaler.get_scale()\nscaler.step(optimizer)\nscaler.update()\nif scaler.get_scale() < prev_scale:\n    overflow_count += 1\nstep_count += 1\n"
+    },
+    "breakIt": {
+      "name": "break_it.py",
+      "content": "\"\"\"\nProject 11: BREAK IT experiment.\n\nDeliberately sabotages one mechanism from build.py to show what happens\nwhen it's removed. Compare outputs to the working version.\n\"\"\"\n\n# torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)\n\nlr = base_lr * 3.0\n"
+    },
+    "steps": [
+      {
+        "name": "step_01_add-per-layer-gradient-norm-logging.py",
+        "title": "Add Per Layer Gradient Norm Logging",
+        "n": 1,
+        "content": "\"\"\"\nProject 11: Step 1 — Add per-layer gradient norm logging\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\ndef group_grad_norms(model):\n    norms = {}\n    for name, module in model.named_modules():\n        params = [p for p in module.parameters(recurse=False)\n                  if p.grad is not None]\n        if not params:\n            continue\n        total_sq = sum((p.grad ** 2).sum().item() for p in params)\n        norms[name] = total_sq ** 0.5\n    return norms\n"
+      },
+      {
+        "name": "step_02_add-per-layer-activation-histogram.py",
+        "title": "Add Per Layer Activation Histogram",
+        "n": 2,
+        "content": "\"\"\"\nProject 11: Step 2 — Add per-layer activation histogram\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nactivation_stats = {}\n\ndef make_hook(name):\n    def hook(module, inputs, output):\n        x = output.detach().float()\n        activation_stats[name] = {\n            \"mean\": x.mean().item(),\n            \"std\": x.std().item(),\n            \"min\": x.min().item(),\n            \"max\": x.max().item(),\n            \"abs_max\": x.abs().max().item(),\n        }\n    return hook\n\nfor name, module in model.named_modules():\n    if isinstance(module, TransformerBlock):\n        module.register_forward_hook(make_hook(name))\n"
+      },
+      {
+        "name": "step_03_add-weight-update-ratio.py",
+        "title": "Add Weight Update Ratio",
+        "n": 3,
+        "content": "\"\"\"\nProject 11: Step 3 — Add weight-update ratio\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\ndef update_ratios(model, optimizer_step):\n    pre_norms = {}\n    pre_params = {}\n    for name, p in model.named_parameters():\n        if p.requires_grad:\n            pre_norms[name] = p.data.norm().item()\n            pre_params[name] = p.data.clone()\n    optimizer_step()\n    ratios = {}\n    for name, p in model.named_parameters():\n        if p.requires_grad and pre_norms[name] > 0:\n            delta = (p.data - pre_params[name]).norm().item()\n            ratios[name] = delta / pre_norms[name]\n    return ratios\n"
+      },
+      {
+        "name": "step_06_apply-gradient-clipping-and-watch-the-spike-absorbed.py",
+        "title": "Apply Gradient Clipping And Watch The Spike Absorbed",
+        "n": 6,
+        "content": "\"\"\"\nProject 11: Step 6 — Apply gradient clipping and watch the spike absorbed\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\ntorch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)\n"
+      },
+      {
+        "name": "step_07_mixed-precision-overflow-detection.py",
+        "title": "Mixed Precision Overflow Detection",
+        "n": 7,
+        "content": "\"\"\"\nProject 11: Step 7 — Mixed-precision overflow detection\n\nPedagogical reference: this file shows the code for this step in isolation.\nFor the full assembled, runnable build, use build.py in this same folder.\n\"\"\"\n\nscaler = torch.cuda.amp.GradScaler()\noverflow_count = 0\nstep_count = 0\n\n# Inside the training loop:\nscaler.scale(loss).backward()\nprev_scale = scaler.get_scale()\nscaler.step(optimizer)\nscaler.update()\nif scaler.get_scale() < prev_scale:\n    overflow_count += 1\nstep_count += 1\n"
+      }
+    ]
+  },
+  "outputs": [],
+  "tests": [],
+  "hasBreakIt": true,
+  "hasOutputs": false,
+  "hasTests": false
+}

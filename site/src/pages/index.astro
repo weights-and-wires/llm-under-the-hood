@@ -1,0 +1,335 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import book from "../content/book.json";
+const parts = (await import("../content/curriculum.json")).default;
+
+const totalProjects = parts.reduce((n, p) => n + p.projects.length, 0);
+---
+
+<BaseLayout bare active="/">
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">A code companion · 36 projects · {book.projectCount} chapters</p>
+      <h1 class="hero-title">
+        Under the<br /><em>Hood.</em>
+      </h1>
+      <p class="hero-sub">{book.subtitle}</p>
+      <p class="hero-author">By {book.author}</p>
+
+      <div class="hero-cta">
+        <a href="/projects/1" class="btn btn-primary">Start with Project 01 →</a>
+        <a href="/projects" class="btn btn-ghost">Browse all {totalProjects}</a>
+      </div>
+
+      <blockquote class="hero-quote">
+        Build it. Break it. Measure it.
+        <span>— not a tagline, the entire epistemology of the book.</span>
+      </blockquote>
+    </div>
+  </section>
+
+  <section class="method">
+    <div class="method-inner">
+      <h2 class="section-title">The Method</h2>
+      <div class="method-grid">
+        <article>
+          <span class="method-num">01</span>
+          <h3>Build it</h3>
+          <p>Reading is not understanding. Understanding is being able to reproduce. Every project ships a runnable <code>build.py</code> you assemble yourself.</p>
+        </article>
+        <article>
+          <span class="method-num">02</span>
+          <h3>Break it</h3>
+          <p>A working system tells you what it does. A broken system tells you <em>why</em> it has to be that way. Each project sabotages itself on purpose.</p>
+        </article>
+        <article>
+          <span class="method-num">03</span>
+          <h3>Measure it</h3>
+          <p>Intuition without numbers is the most expensive failure mode in machine learning. Every claim comes with captured outputs.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="curriculum">
+    <div class="curriculum-inner">
+      <h2 class="section-title">The Curriculum</h2>
+      <p class="section-lede">
+        {totalProjects} projects across {parts.length} parts. Each builds on the previous.
+        Read in order, or jump to what you need.
+      </p>
+      <ol class="parts-list">
+        {parts.map((part, i) => (
+          <li class="part-row">
+            <a href={`/projects/${part.projects[0].num}`} class="part-link">
+              <span class="part-index">{String(i + 1).padStart(2, "0")}</span>
+              <span class="part-body">
+                <span class="part-name">{part.name}</span>
+                <span class="part-count">{part.projects.length} projects</span>
+              </span>
+              <span class="part-titles">
+                {part.projects.slice(0, 3).map((p) => (<span class="part-pill">{p.title}</span>))}
+                {part.projects.length > 3 && <span class="part-pill part-pill--more">+{part.projects.length - 3}</span>}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <section class="pitch">
+    <div class="pitch-inner">
+      <h2 class="section-title">This is the code. The book is the why.</h2>
+      <p class="pitch-body">
+        This site hosts every runnable project, every <code>break_it</code> experiment,
+        and every captured output — free. The book itself (the long-form derivations,
+        the prose, the full chapters) is distributed separately.
+      </p>
+      <a href={book.leanpubUrl} target="_blank" rel="noopener" class="btn btn-primary">
+        Buy the book on Leanpub →
+      </a>
+    </div>
+  </section>
+
+  <footer class="site-foot">
+    <span>{book.title} · MIT licensed code · <a href={book.githubUrl} target="_blank" rel="noopener">GitHub</a></span>
+  </footer>
+</BaseLayout>
+
+<style>
+  .hero {
+    border-bottom: 1px solid var(--color-line);
+    padding: 6rem 2rem 5rem;
+  }
+  .hero-inner {
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--color-faint);
+    letter-spacing: 0.04em;
+    margin-bottom: 1.5rem;
+  }
+  .hero-title {
+    font-family: var(--font-serif);
+    font-size: clamp(3rem, 9vw, 6.5rem);
+    line-height: 0.98;
+    letter-spacing: -0.03em;
+    margin: 0 0 1.5rem;
+    color: var(--color-fg);
+  }
+  .hero-title em {
+    color: var(--color-accent);
+    font-style: italic;
+  }
+  .hero-sub {
+    font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+    color: var(--color-muted);
+    max-width: 40ch;
+    line-height: 1.45;
+    margin: 0 0 0.6rem;
+  }
+  .hero-author {
+    color: var(--color-faint);
+    font-size: 0.9rem;
+    margin: 0 0 2.4rem;
+  }
+  .hero-cta {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    margin-bottom: 3rem;
+  }
+  .btn {
+    display: inline-block;
+    padding: 0.7rem 1.3rem;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.12s ease;
+  }
+  .btn-primary {
+    background: var(--color-accent);
+    color: #0a0a0b;
+    font-weight: 600;
+  }
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--color-accent) 85%, white);
+  }
+  .btn-ghost {
+    border: 1px solid var(--color-line-strong);
+    color: var(--color-fg);
+  }
+  .btn-ghost:hover {
+    border-color: var(--color-accent-dim);
+  }
+  .hero-quote {
+    border-left: 2px solid var(--color-accent-dim);
+    padding-left: 1.1rem;
+    color: var(--color-muted);
+    font-style: italic;
+    max-width: 50ch;
+  }
+  .hero-quote span {
+    display: block;
+    font-style: normal;
+    font-size: 0.82rem;
+    color: var(--color-faint);
+    margin-top: 0.4rem;
+  }
+
+  /* method */
+  .method {
+    border-bottom: 1px solid var(--color-line);
+    padding: 5rem 2rem;
+  }
+  .method-inner,
+  .curriculum-inner,
+  .pitch-inner {
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: 1.8rem;
+    margin: 0 0 1.5rem;
+    color: var(--color-fg);
+  }
+  .section-lede {
+    color: var(--color-muted);
+    max-width: 55ch;
+    margin-bottom: 2.5rem;
+  }
+  .method-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+  .method-grid article {
+    border-top: 1px solid var(--color-line-strong);
+    padding-top: 1.2rem;
+  }
+  .method-num {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--color-accent);
+  }
+  .method-grid h3 {
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    margin: 0.5rem 0 0.7rem;
+  }
+  .method-grid p {
+    color: var(--color-muted);
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+
+  /* curriculum list */
+  .curriculum {
+    border-bottom: 1px solid var(--color-line);
+    padding: 5rem 2rem;
+  }
+  .parts-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .part-row {
+    border-top: 1px solid var(--color-line);
+  }
+  .part-row:last-child {
+    border-bottom: 1px solid var(--color-line);
+  }
+  .part-link {
+    display: grid;
+    grid-template-columns: 3rem 1fr auto;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.3rem 0.5rem;
+    text-decoration: none;
+    transition: background 0.12s ease;
+  }
+  .part-link:hover {
+    background: var(--color-surface);
+  }
+  .part-index {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--color-faint);
+  }
+  .part-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .part-name {
+    font-family: var(--font-serif);
+    font-size: 1.3rem;
+    color: var(--color-fg);
+  }
+  .part-count {
+    font-size: 0.78rem;
+    color: var(--color-faint);
+    font-family: var(--font-mono);
+  }
+  .part-titles {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .part-pill {
+    font-size: 0.72rem;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 999px;
+    color: var(--color-muted);
+    white-space: nowrap;
+  }
+  .part-pill--more {
+    color: var(--color-faint);
+    border-style: dashed;
+  }
+
+  /* pitch */
+  .pitch {
+    padding: 5rem 2rem;
+  }
+  .pitch-body {
+    color: var(--color-muted);
+    max-width: 55ch;
+    margin: 0 0 2rem;
+    line-height: 1.7;
+  }
+
+  .site-foot {
+    border-top: 1px solid var(--color-line);
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-faint);
+    font-size: 0.82rem;
+  }
+  .site-foot a {
+    color: var(--color-muted);
+  }
+  .site-foot a:hover {
+    color: var(--color-accent);
+  }
+
+  @media (max-width: 760px) {
+    .method-grid {
+      grid-template-columns: 1fr;
+    }
+    .part-link {
+      grid-template-columns: 2.2rem 1fr;
+    }
+    .part-titles {
+      display: none;
+    }
+  }
+</style>
